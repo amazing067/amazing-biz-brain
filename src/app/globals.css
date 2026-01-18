@@ -49,10 +49,3 @@ button, a {
   user-select: none;
 }
 
-/* 음성 인식 타입 정의를 위한 전역 선언 */
-declare global {
-  interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-  }
-}

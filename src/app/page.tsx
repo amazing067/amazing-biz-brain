@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { QUIZ_QUESTIONS, QuizQuestion, CategoryName, CATEGORIES, UserProfile, getNormalRange } from '../data/quizData';
 
-type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9; // -1: 인트로, 0-7: 문제(8개), 8: 결과
+type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11; // -1: 인트로, 0-9: 문제(10개), 10: 결과
 
 // 숫자 순차 표시 컴포넌트 (Q2용)
 function ReverseNumberDisplay({ sequence }: { sequence: number[] }) {
@@ -42,31 +42,162 @@ function ReverseNumberDisplay({ sequence }: { sequence: number[] }) {
   // 완료 후 입력 안내
   if (isComplete) {
     return (
-      <div className="bg-gray-100 p-6 rounded-xl text-center min-h-[120px] flex items-center justify-center">
-        <p className="text-2xl text-gray-600">이제 숫자를 거꾸로 입력해주세요!</p>
+      <div className="bg-gray-100 p-2 rounded-lg text-center min-h-[50px] flex items-center justify-center">
+        <p className="text-sm text-gray-600">이제 숫자를 거꾸로 입력해주세요!</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-br from-orange-100 to-orange-200 p-8 rounded-xl text-center min-h-[120px] flex items-center justify-center">
+    <div className="bg-gradient-to-br from-orange-100 to-orange-200 p-2 rounded-lg text-center min-h-[60px] flex items-center justify-center">
       {currentIndex === -2 && (
-        <div className="space-y-3">
-          <p className="text-3xl font-bold text-gray-800">숫자가 하나씩 나타납니다</p>
-          <p className="text-2xl text-gray-700">숫자를 <span className="text-[#EF6C00] font-bold">거꾸로</span> 기억해주세요!</p>
-          <p className="text-xl text-gray-600 mt-2">곧 시작합니다...</p>
+        <div className="space-y-0.5">
+          <p className="text-base font-bold text-gray-800">숫자가 하나씩 나타납니다</p>
+          <p className="text-sm text-gray-700">숫자를 <span className="text-[#EF6C00] font-bold">거꾸로</span> 기억해주세요!</p>
+          <p className="text-xs text-gray-600 mt-1">곧 시작합니다...</p>
         </div>
       )}
       {currentIndex === -1 && (
-        <p className="text-2xl text-gray-600">준비하세요!</p>
+        <p className="text-sm text-gray-600">준비하세요!</p>
       )}
       {currentIndex >= 0 && (
-        <div className="text-8xl font-bold text-gray-800 animate-pulse">
+        <div className="text-4xl font-bold text-gray-800 animate-pulse">
           {sequence[currentIndex]}
         </div>
       )}
     </div>
   );
+}
+
+// 순발력 테스트 컴포넌트
+function ReactionSpeedTest({ onComplete }: { onComplete: (reactionTime: number) => void }) {
+  const [phase, setPhase] = useState<'waiting' | 'ready' | 'go' | 'result'>('waiting');
+  const [startTime, setStartTime] = useState<number>(0);
+  const [reactionTime, setReactionTime] = useState<number>(0);
+
+  useEffect(() => {
+    if (phase === 'waiting') {
+      // 2~5초 랜덤 대기
+      const waitTime = 2000 + Math.random() * 3000;
+      const timer = setTimeout(() => {
+        setPhase('ready');
+      }, waitTime);
+      return () => clearTimeout(timer);
+    } else if (phase === 'ready') {
+      // 0.5초 후 초록색으로 변경
+      const timer = setTimeout(() => {
+        setPhase('go');
+        const now = Date.now();
+        setStartTime(now);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else if (phase === 'result') {
+      // 결과 표시 후 2초 뒤 자동으로 완료 처리
+      const timer = setTimeout(() => {
+        onComplete(reactionTime);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, reactionTime, onComplete]);
+
+  const handleClick = () => {
+    if (phase === 'go') {
+      const endTime = Date.now();
+      const time = endTime - startTime;
+      setReactionTime(time);
+      setPhase('result');
+    } else if (phase === 'waiting' || phase === 'ready') {
+      // 너무 빨리 클릭하면 다시 시작
+      setPhase('waiting');
+    }
+  };
+
+  const getReactionMessage = (time: number) => {
+    if (time <= 300) return { text: '반사신경 20대! 🚀', color: 'text-green-600' };
+    if (time <= 500) return { text: '반사신경 30-40대! 👍', color: 'text-blue-600' };
+    if (time <= 800) return { text: '뇌 전달 속도가 느려지고 있어요... ⚠️', color: 'text-orange-600' };
+    return { text: '전두엽 훈련이 시급합니다! 🚨', color: 'text-red-600' };
+  };
+
+  if (phase === 'result') {
+    const message = getReactionMessage(reactionTime);
+    return (
+      <div className="space-y-4 text-center">
+        <div className={`text-3xl font-bold ${message.color} p-6 rounded-2xl bg-gray-50`}>
+          {message.text}
+        </div>
+        <div className="text-2xl text-gray-700">
+          반응 속도: <span className="font-bold text-[#2E7D32]">{(reactionTime / 1000).toFixed(2)}초</span>
+        </div>
+        <p className="text-base text-gray-500">
+          {reactionTime > 500 && '문제는 잘 푸셨지만, 반응 속도가 느리십니다. 전두엽 훈련이 필요합니다.'}
+        </p>
+        <p className="text-sm text-gray-400 mt-2">잠시 후 결과 화면으로 이동합니다...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`min-h-[400px] flex items-center justify-center rounded-2xl transition-all duration-300 cursor-pointer ${
+        phase === 'waiting' || phase === 'ready'
+          ? 'bg-red-500 active:bg-red-600'
+          : 'bg-green-500 animate-pulse'
+      }`}
+      onClick={handleClick}
+    >
+      <div className="text-center text-white">
+        {phase === 'waiting' && (
+          <>
+            <div className="text-6xl mb-4">🔴</div>
+            <p className="text-3xl font-bold mb-2">대기 중...</p>
+            <p className="text-xl">초록색이 되면 즉시 터치하세요!</p>
+          </>
+        )}
+        {phase === 'ready' && (
+          <>
+            <div className="text-6xl mb-4 animate-bounce">🟡</div>
+            <p className="text-3xl font-bold mb-2">준비하세요!</p>
+            <p className="text-xl">곧 초록색이 됩니다!</p>
+          </>
+        )}
+        {phase === 'go' && (
+          <>
+            <div className="text-8xl mb-4">🟢</div>
+            <p className="text-5xl font-bold animate-pulse">지금!!</p>
+            <p className="text-2xl mt-4">터치하세요!</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 애니메이션 숫자 컴포넌트 (간병비 표시용)
+function AnimatedNumber({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const duration = 2000; // 2초 동안 애니메이션
+    const steps = 60;
+    const increment = value / steps;
+    const stepDuration = duration / steps;
+    
+    let current = 0;
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= value) {
+        setDisplayValue(value);
+        clearInterval(timer);
+      } else {
+        setDisplayValue(Math.round(current));
+      }
+    }, stepDuration);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  return <span>{displayValue.toLocaleString()}</span>;
 }
 
 interface GameState {
@@ -77,6 +208,7 @@ interface GameState {
   phoneNumber: string;
   timeRemaining?: number; // 타이머
   showingBreak?: boolean; // 휴식 메시지 표시 중
+  reactionTime?: number; // 반응 속도 (ms)
 }
 
 const TOTAL_QUESTIONS = QUIZ_QUESTIONS.length;
@@ -90,7 +222,9 @@ export default function Home() {
     phoneNumber: '',
     timeRemaining: undefined,
     showingBreak: false,
+    reactionTime: undefined,
   });
+
 
   // 타이머 관리
   useEffect(() => {
@@ -130,6 +264,7 @@ export default function Home() {
     }
   }, [gameState.currentStep]);
 
+
   const handleNextStep = () => {
     if (gameState.currentStep < TOTAL_QUESTIONS) {
       // 첫 번째 문제 이후부터 결과 화면 전까지 휴식 메시지 표시
@@ -168,11 +303,23 @@ export default function Home() {
       question.type === 'choice' ||
       question.type === 'stroop' ||
       question.type === 'time-calculation' ||
-      question.type === 'complex-calculation'
+      question.type === 'complex-calculation' ||
+      question.type === 'symbol-count' ||
+      question.type === 'serial-subtraction'
     ) {
       setTimeout(() => {
         handleNextStep();
       }, 800);
+    }
+    
+    // 순발력 테스트는 컴포넌트 내부에서 처리
+    if (question.type === 'reaction-speed') {
+      // onComplete에서 처리됨
+    }
+    
+    // 가족 부양 질문은 컴포넌트 내부에서 처리 (1.5초 후 자동 진행)
+    if (question.type === 'family-care') {
+      // 컴포넌트 내부에서 처리됨
     }
   };
 
@@ -296,7 +443,7 @@ export default function Home() {
       },
       계산력: (p) => {
         if (p < 60) {
-          return '복합 계산 문제는 일상생활에서 중요한 능력입니다. 계산력 저하는 인지 기능 저하의 신호일 수 있습니다.';
+          return '연속 뺄셈 문제를 틀리셨네요. 100-7=93, 93-7=86, 86-7=79가 정답입니다. 계산력 저하는 인지 기능 저하의 신호일 수 있습니다.';
         }
         return '계산력이 평균보다 낮습니다. 두뇌 운동을 꾸준히 해보세요.';
       },
@@ -312,7 +459,7 @@ export default function Home() {
       판단력: () => '판단력이 평균보다 낮습니다.',
       주의력: (p) => {
         if (p < 60) {
-          return '주의력 문제를 틀리셨습니다. 주의력 저하는 치매 초기 증상일 수 있습니다. 전문의 상담을 권장합니다.';
+          return '기호 찾기 문제를 틀리셨네요. 세잎클로버♣️는 총 7개입니다. (네잎클로버🍀는 제외) 주의력 저하는 치매 초기 증상일 수 있습니다. 전문의 상담을 권장합니다.';
         }
         return '주의력이 평균보다 낮습니다. 집중력 훈련을 추천합니다.';
       },
@@ -345,9 +492,9 @@ export default function Home() {
     if (gameState.currentStep === -1 || gameState.currentStep >= TOTAL_QUESTIONS) return null;
     const progress = ((gameState.currentStep + 1) / (TOTAL_QUESTIONS + 1)) * 100;
     return (
-      <div className="w-full bg-gray-200 rounded-full h-4 mb-4">
+      <div className="w-full bg-gray-200 rounded-full h-2 sm:h-4 mb-2 sm:mb-4 flex-shrink-0">
         <div
-          className="bg-[#2E7D32] h-4 rounded-full transition-all duration-300"
+          className="bg-[#2E7D32] h-2 sm:h-4 rounded-full transition-all duration-300"
           style={{ width: `${progress}%` }}
         ></div>
       </div>
@@ -393,17 +540,17 @@ export default function Home() {
       const greeting = getGreetingMessage(gameState.userProfile.age);
       
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-6 space-y-8 bg-gradient-to-b from-green-50 to-orange-50">
-          <div className="mb-6 animate-bounce">
-            <div className="text-8xl">🐻</div>
+        <div className="flex flex-col items-center justify-center h-full p-3 sm:p-6 space-y-2 sm:space-y-4 bg-gradient-to-b from-green-50 to-orange-50 overflow-y-auto">
+          <div className="mb-2 sm:mb-4 animate-bounce flex-shrink-0">
+            <div className="text-5xl sm:text-8xl">🐻</div>
           </div>
-          <div className="bg-white rounded-3xl p-6 shadow-lg w-full">
-            <div className="text-center mb-8 space-y-4">
-              <h1 className="text-4xl font-bold text-[#2E7D32]">안녕하세요!</h1>
-              <p className="text-3xl text-gray-800">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-lg w-full flex-shrink-0">
+            <div className="text-center mb-4 sm:mb-6 space-y-2 sm:space-y-3">
+              <h1 className="text-2xl sm:text-4xl font-bold text-[#2E7D32]">안녕하세요!</h1>
+              <p className="text-xl sm:text-3xl text-gray-800">
                 저는 <span className="text-[#EF6C00] font-bold">닥터 든든이</span>예요! 👋
               </p>
-              <div className="text-2xl text-gray-600 leading-relaxed space-y-1">
+              <div className="text-base sm:text-2xl text-gray-600 leading-relaxed space-y-0.5 sm:space-y-1">
                 <p>{greeting.title}</p>
                 <p>{greeting.subtitle}</p>
                 <p>시작해볼까요?</p>
@@ -411,10 +558,10 @@ export default function Home() {
             </div>
 
             {/* 성별/연령 입력 */}
-            <div className="mb-6 space-y-4">
+            <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
               <div>
-                <p className="text-xl text-gray-700 mb-2">나이를 입력해주세요 (선택사항)</p>
-                <p className="text-base text-gray-500 mb-3 text-center">
+                <p className="text-sm sm:text-xl text-gray-700 mb-1 sm:mb-2">나이를 입력해주세요 (선택사항)</p>
+                <p className="text-xs sm:text-base text-gray-500 mb-2 sm:mb-3 text-center">
                   나이를 입력하시면 더 정확한 분석이 가능해요
                 </p>
                 <input
@@ -430,12 +577,12 @@ export default function Home() {
                   placeholder="예: 55"
                   min="30"
                   max="100"
-                  className="w-full min-h-[60px] h-16 px-4 text-2xl border-2 border-gray-300 rounded-xl focus:border-[#2E7D32] focus:outline-none text-center"
+                  className="w-full h-12 sm:h-16 px-3 sm:px-4 text-lg sm:text-2xl border-2 border-gray-300 rounded-xl focus:border-[#2E7D32] focus:outline-none text-center"
                 />
               </div>
               <div>
-                <p className="text-xl text-gray-700 mb-2">성별을 선택해주세요 (선택사항)</p>
-                <div className="grid grid-cols-2 gap-3">
+                <p className="text-sm sm:text-xl text-gray-700 mb-1 sm:mb-2">성별을 선택해주세요 (선택사항)</p>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <button
                     onClick={() =>
                       setGameState((prev) => ({
@@ -443,7 +590,7 @@ export default function Home() {
                         userProfile: { ...prev.userProfile, gender: 'male' },
                       }))
                     }
-                    className={`min-h-[60px] h-16 text-2xl font-bold rounded-xl transition-colors touch-manipulation ${
+                    className={`h-12 sm:h-16 text-lg sm:text-2xl font-bold rounded-xl transition-colors touch-manipulation ${
                       gameState.userProfile.gender === 'male'
                         ? 'bg-[#2E7D32] text-white'
                         : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
@@ -458,7 +605,7 @@ export default function Home() {
                         userProfile: { ...prev.userProfile, gender: 'female' },
                       }))
                     }
-                    className={`min-h-[60px] h-16 text-2xl font-bold rounded-xl transition-colors touch-manipulation ${
+                    className={`h-12 sm:h-16 text-lg sm:text-2xl font-bold rounded-xl transition-colors touch-manipulation ${
                       gameState.userProfile.gender === 'female'
                         ? 'bg-[#2E7D32] text-white'
                         : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
@@ -472,7 +619,7 @@ export default function Home() {
 
             <button
               onClick={handleNextStep}
-              className="w-full min-h-[60px] h-16 bg-[#2E7D32] text-white text-2xl font-bold rounded-2xl hover:bg-[#1B5E20] active:bg-[#1B5E20] transition-colors shadow-lg touch-manipulation"
+              className="w-full h-12 sm:h-16 bg-[#2E7D32] text-white text-lg sm:text-2xl font-bold rounded-xl sm:rounded-2xl hover:bg-[#1B5E20] active:bg-[#1B5E20] transition-colors shadow-lg touch-manipulation"
             >
               시작하기
             </button>
@@ -487,20 +634,87 @@ export default function Home() {
       const percentage = Math.round((totalScore / maxScore) * 100);
       const brainAge = getBrainAge(percentage);
       const message = getBrainAgeMessage(percentage, correctCount);
+      
+      // 간병비 계산 (점수가 80점 미만일 때)
+      const estimatedMonthlyCost = percentage < 80 ? Math.round((80 - percentage) * 4.375) : 0; // 최대 350만원
+      const estimatedYearlyCost = estimatedMonthlyCost * 12;
+      
+      // 가족 부양 질문 답변 가져오기
+      const familyCareAnswer = gameState.answers[10] as string;
+      
+      // 황금 뇌 인증서 (90점 이상)
+      const isGoldBrain = percentage >= 90;
 
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-6 space-y-8 bg-gradient-to-b from-green-50 to-orange-50">
-          <div className="text-6xl mb-4">🐻</div>
-          <div className="bg-white rounded-3xl p-6 shadow-lg w-full">
-            <div className="text-center mb-8">
-              <p className="text-4xl font-bold text-[#2E7D32] mb-4">{message}</p>
-              <p className="text-2xl text-gray-700">점수: {totalScore}점 / {maxScore}점</p>
-              <p className="text-xl text-gray-600 mt-2">뇌 나이: {brainAge}</p>
+        <div className="flex flex-col items-center justify-start h-full p-2 space-y-2 bg-gradient-to-b from-green-50 to-orange-50 overflow-y-auto">
+          <div className="text-4xl mb-1 flex-shrink-0 pt-2">🐻</div>
+          
+          {/* 황금 뇌 인증서 (90점 이상) */}
+          {isGoldBrain && (
+            <div className="w-full mb-2 bg-gradient-to-br from-yellow-50 to-amber-50 border-4 border-yellow-400 rounded-2xl p-4 shadow-lg">
+              <div className="text-center">
+                <div className="text-5xl mb-2">🏆</div>
+                <p className="text-xl font-bold text-yellow-800 mb-1">황금 뇌 인증서</p>
+                <div className="border-t-2 border-yellow-400 my-2"></div>
+                <p className="text-sm text-yellow-700 leading-relaxed">
+                  위 사람은 상위 1%의 뇌 건강을<br />
+                  보유하고 있음을 인증합니다.
+                </p>
+                <p className="text-xs text-yellow-600 mt-2">- 닥터 든든이 -</p>
+                <button
+                  onClick={() => {
+                    // 공유 기능 (카카오톡 등)
+                    if (navigator.share) {
+                      navigator.share({
+                        title: '황금 뇌 인증서 획득!',
+                        text: `뇌 건강 테스트에서 ${percentage}점으로 황금 뇌 인증서를 받았습니다!`,
+                        url: window.location.href,
+                      });
+                    } else {
+                      // 공유 불가 시 클립보드 복사
+                      navigator.clipboard.writeText(`뇌 건강 테스트에서 ${percentage}점으로 황금 뇌 인증서를 받았습니다! ${window.location.href}`);
+                      alert('인증서 내용이 복사되었습니다! 카톡방에 붙여넣기 하세요.');
+                    }
+                  }}
+                  className="mt-3 px-4 py-2 bg-yellow-400 text-yellow-900 text-sm font-bold rounded-lg active:bg-yellow-500 touch-manipulation"
+                >
+                  📱 카톡방에 자랑하기
+                </button>
+              </div>
+            </div>
+          )}
+          
+          <div className="bg-white rounded-2xl p-3 shadow-lg w-full flex-shrink-0">
+            <div className="text-center mb-3">
+              <p className="text-2xl font-bold text-[#2E7D32] mb-2">{message}</p>
+              <p className="text-lg text-gray-700">점수: {totalScore}점 / {maxScore}점</p>
+              <p className="text-base text-gray-600 mt-1">뇌 나이: {brainAge}</p>
+              
+              {/* 반응 속도 결과 표시 */}
+              {gameState.reactionTime !== undefined && (
+                <div className={`mt-2 p-2 rounded-xl ${
+                  gameState.reactionTime > 500 ? 'bg-red-50 border-2 border-red-300' : 'bg-blue-50 border-2 border-blue-300'
+                }`}>
+                  <p className={`text-sm font-bold ${
+                    gameState.reactionTime > 500 ? 'text-red-700' : 'text-blue-700'
+                  }`}>
+                    {gameState.reactionTime > 500 
+                      ? `⚠️ 반응 속도: ${(gameState.reactionTime / 1000).toFixed(2)}초 - 뇌 전달 속도가 느려지고 있어요`
+                      : `✅ 반응 속도: ${(gameState.reactionTime / 1000).toFixed(2)}초 - 양호합니다`
+                    }
+                  </p>
+                  {gameState.reactionTime > 500 && (
+                    <p className="text-xs text-red-600 mt-1">
+                      문제는 잘 푸셨지만, 반응 속도가 느리십니다. 전두엽 훈련이 필요합니다.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 영역별 점수 표시 */}
-            <div className="mb-6 space-y-4">
-              <p className="text-2xl font-bold text-gray-800 text-center mb-4">영역별 점수</p>
+            <div className="mb-3 space-y-2">
+              <p className="text-lg font-bold text-gray-800 text-center mb-2">영역별 점수</p>
               {CATEGORIES.map((category) => {
                 const score = categoryScores[category];
                 const max = categoryMaxScores[category];
@@ -513,24 +727,24 @@ export default function Home() {
                 const feedback = getCategoryFeedback(category, percent, score, max);
                 
                 return (
-                  <div key={category} className="mb-4">
+                  <div key={category} className="mb-2">
                     <div className="flex justify-between mb-1">
-                      <span className="text-xl text-gray-700">{category}</span>
-                      <span className={`text-xl ${isNormal ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className="text-sm text-gray-700">{category}</span>
+                      <span className={`text-sm ${isNormal ? 'text-green-600' : 'text-red-600'}`}>
                         {score}/{max} {isNormal ? '✓' : '⚠'}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-6">
+                    <div className="w-full bg-gray-200 rounded-full h-3">
                       <div
-                        className={`h-6 rounded-full transition-all ${
+                        className={`h-3 rounded-full transition-all ${
                           percent >= normalRange.min ? 'bg-green-500' : percent >= normalRange.min - 10 ? 'bg-yellow-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${percent}%` }}
                       ></div>
                     </div>
                     {feedback && (
-                      <div className="mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
-                        <p className="text-base text-red-800 leading-relaxed">{feedback}</p>
+                      <div className="mt-1 p-2 bg-red-50 border-l-4 border-red-500 rounded-r">
+                        <p className="text-xs text-red-800 leading-relaxed">{feedback}</p>
                       </div>
                     )}
                   </div>
@@ -538,18 +752,93 @@ export default function Home() {
               })}
             </div>
 
-            <div className="mb-8 p-6 bg-green-50 rounded-2xl">
-              <p className="text-2xl leading-relaxed text-center text-gray-800 mb-3">
+            {/* 가족 부양 부담 메시지 (Q10 답변 기반) */}
+            {familyCareAnswer && (
+              <div className="mb-3 p-3 bg-orange-50 border-2 border-orange-300 rounded-xl">
+                <p className="text-sm font-bold text-center text-orange-800 mb-2">
+                  💭 가족 부양 부담 분석
+                </p>
+                <div className="bg-white p-3 rounded-xl">
+                  {familyCareAnswer === '배우자' && (
+                    <p className="text-xs text-orange-800 text-center leading-relaxed">
+                      배우자님께 의존하시는군요. 하지만 배우자님도 연로하시면<br />
+                      <span className="font-bold">서로 돌보기 어려운 상황</span>이 올 수 있습니다.
+                    </p>
+                  )}
+                  {familyCareAnswer === '자녀' && (
+                    <p className="text-xs text-orange-800 text-center leading-relaxed">
+                      자녀분께 의존하시는군요. 하지만 자녀분의<br />
+                      <span className="font-bold">경제활동이 중단</span>되면 가족 전체가 어려워질 수 있습니다.
+                    </p>
+                  )}
+                  {familyCareAnswer === '간병인/요양병원' && (
+                    <p className="text-xs text-orange-800 text-center leading-relaxed">
+                      간병인이나 요양병원을 고려하시는군요.<br />
+                      <span className="font-bold">매달 400만 원 이상</span>의 비용이 필요합니다.
+                    </p>
+                  )}
+                  {familyCareAnswer === '잘 모르겠다' && (
+                    <p className="text-xs text-orange-800 text-center leading-relaxed">
+                      아직 준비가 되어 있지 않으시군요.<br />
+                      <span className="font-bold">지금부터 준비</span>해야 합니다.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 예상 간병비 시뮬레이터 (점수 80점 미만일 때) */}
+            {estimatedMonthlyCost > 0 && (
+              <div className="mb-3 p-3 bg-red-50 border-2 border-red-300 rounded-xl">
+                <p className="text-base font-bold text-center text-red-800 mb-2">
+                  💰 예상 간병비 계산
+                </p>
+                <div className="bg-white p-3 rounded-xl mb-2">
+                  <p className="text-sm text-gray-700 mb-2">
+                    현재 뇌 건강 상태로 볼 때, 10년 뒤 예상 치매 간병비는?
+                  </p>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600 mb-1">
+                      월 <AnimatedNumber value={estimatedMonthlyCost} />만 원
+                    </div>
+                    <div className="text-lg text-gray-600">
+                      연간 약 <AnimatedNumber value={estimatedYearlyCost} />만 원
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-red-800 text-center leading-relaxed">
+                  ⚠️ 지금 준비하지 않으면, 10년 뒤 자녀분들이<br />
+                  매달 <span className="font-bold">{estimatedMonthlyCost}만 원</span>을 부담해야 할 수도 있습니다.<br />
+                  <span className="font-bold text-[#EF6C00]">이 비용을 0원으로 만드는 방법</span>을 알려드릴까요?
+                </p>
+                {/* 가족 부양 답변과 연계된 추가 메시지 */}
+                {familyCareAnswer === '자녀' && (
+                  <p className="text-xs text-red-700 text-center mt-2 font-bold">
+                    💔 자녀분이 직장을 그만두고 간병해야 한다면?<br />
+                    손실은 더 커집니다.
+                  </p>
+                )}
+                {familyCareAnswer === '배우자' && (
+                  <p className="text-xs text-red-700 text-center mt-2 font-bold">
+                    💔 배우자님도 건강이 나빠지면?<br />
+                    두 분 모두를 돌볼 사람이 필요합니다.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="mb-3 p-3 bg-green-50 rounded-xl">
+              <p className="text-base leading-relaxed text-center text-gray-800 mb-2">
                 검사 결과가 걱정되시나요?
               </p>
-              <p className="text-xl leading-relaxed text-center text-gray-700 mb-3">
+              <p className="text-sm leading-relaxed text-center text-gray-700 mb-2">
                 지금 보신 결과를 바탕으로<br />
                 <span className="font-bold">전문 상담사가 직접 분석</span>해드리고,<br />
                 맞춤형 건강 관리 가이드를<br />
                 무료로 안내해드릴까요?
               </p>
-              <div className="bg-white p-4 rounded-xl mb-4 border-l-4 border-[#EF6C00]">
-                <p className="text-lg leading-relaxed text-center text-gray-800">
+              <div className="bg-white p-2 rounded-xl mb-2 border-l-4 border-[#EF6C00]">
+                <p className="text-xs leading-relaxed text-center text-gray-800">
                   📞 <span className="font-bold">건강 점검 상담</span>과 함께,<br />
                   필요하시면 <span className="font-bold text-[#EF6C00]">보장 대비 방법</span>도<br />
                   무료로 안내해드립니다
@@ -562,7 +851,7 @@ export default function Home() {
                   setGameState((prev) => ({ ...prev, phoneNumber: e.target.value }))
                 }
                 placeholder="전화번호 입력 (예: 010-1234-5678)"
-                className="w-full min-h-[60px] h-16 px-4 text-2xl border-2 border-gray-300 rounded-xl focus:border-[#2E7D32] focus:outline-none mb-4"
+                className="w-full h-12 px-3 text-base border-2 border-gray-300 rounded-xl focus:border-[#2E7D32] focus:outline-none mb-2"
               />
               <button
                 onClick={() => {
@@ -572,19 +861,19 @@ export default function Home() {
                     alert('전화번호를 입력해주세요.');
                   }
                 }}
-                className="w-full min-h-[60px] h-16 bg-[#EF6C00] text-white text-2xl font-bold rounded-2xl hover:bg-[#E65100] active:bg-[#E65100] transition-colors shadow-lg touch-manipulation"
+                className="w-full h-12 bg-[#EF6C00] text-white text-base font-bold rounded-xl active:bg-[#E65100] transition-colors shadow-lg touch-manipulation"
               >
                 무료 리포트 및 건강 관리 가이드 받기
               </button>
-              <p className="text-sm text-center text-gray-500 mt-3">
+              <p className="text-xs text-center text-gray-500 mt-2">
                 * 개인정보는 건강 상담 목적으로만 사용됩니다
               </p>
             </div>
             <button
               onClick={() => {
-                setGameState({ currentStep: -1, answers: {}, memoryItems: [], userProfile: { gender: '', age: 0 }, phoneNumber: '' });
+                setGameState({ currentStep: -1, answers: {}, memoryItems: [], userProfile: { gender: '', age: 0 }, phoneNumber: '', reactionTime: undefined });
               }}
-              className="w-full min-h-[60px] h-16 bg-gray-300 text-gray-800 text-2xl font-bold rounded-2xl hover:bg-gray-400 active:bg-gray-400 transition-colors shadow-lg touch-manipulation"
+              className="w-full h-12 bg-gray-300 text-gray-800 text-base font-bold rounded-xl active:bg-gray-400 transition-colors shadow-lg touch-manipulation"
             >
               다시 시작하기
             </button>
@@ -596,13 +885,13 @@ export default function Home() {
     // 휴식 메시지 화면
     if (gameState.showingBreak) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-6 space-y-8 bg-gradient-to-b from-green-50 to-orange-50">
-          <div className="text-8xl mb-4 animate-bounce">🐻</div>
-          <div className="bg-white rounded-3xl p-8 shadow-lg w-full text-center">
-            <p className="text-3xl font-bold text-[#2E7D32] mb-4">
+        <div className="flex flex-col items-center justify-center h-full p-3 sm:p-6 space-y-4 sm:space-y-8 bg-gradient-to-b from-green-50 to-orange-50">
+          <div className="text-5xl sm:text-8xl mb-2 sm:mb-4 animate-bounce flex-shrink-0">🐻</div>
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-lg w-full text-center flex-shrink-0">
+            <p className="text-2xl sm:text-3xl font-bold text-[#2E7D32] mb-3 sm:mb-4">
               잠시 쉬어가세요! 😊
             </p>
-            <p className="text-2xl text-gray-700">
+            <p className="text-xl sm:text-2xl text-gray-700">
               다음 문제가 곧 시작됩니다...
             </p>
           </div>
@@ -613,17 +902,20 @@ export default function Home() {
     // 문제 화면
     const question = QUIZ_QUESTIONS[gameState.currentStep];
     const currentAnswer = gameState.answers[question.id];
+    
+    // 나이에 따른 난이도 조절 (70세 이상은 힌트 제공)
+    const showHint = gameState.userProfile.age >= 70;
 
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-6 space-y-4 bg-gradient-to-b from-green-50 to-orange-50">
+      <div className="flex flex-col items-center justify-center h-full p-3 sm:p-6 space-y-2 sm:space-y-4 bg-gradient-to-b from-green-50 to-orange-50 overflow-y-auto">
         {renderProgressBar()}
-        <div className="flex items-center justify-between w-full mb-2">
-          <div className="text-2xl text-gray-600">
+        <div className="flex items-center justify-between w-full mb-1 sm:mb-2 flex-shrink-0">
+          <div className="text-lg sm:text-2xl text-gray-600">
             {gameState.currentStep + 1} / {TOTAL_QUESTIONS}
           </div>
           {question.timeLimit && gameState.timeRemaining !== undefined && (
             <div 
-              className={`text-4xl font-bold transition-all duration-300 ${
+              className={`text-2xl sm:text-4xl font-bold transition-all duration-300 ${
                 gameState.timeRemaining <= 5 
                   ? 'text-red-600 animate-pulse scale-110' 
                   : gameState.timeRemaining <= 10
@@ -633,31 +925,31 @@ export default function Home() {
             >
               ⏱ {gameState.timeRemaining}초
               {gameState.timeRemaining <= 5 && (
-                <span className="ml-2 text-2xl">⚠️</span>
+                <span className="ml-1 sm:ml-2 text-lg sm:text-2xl">⚠️</span>
               )}
             </div>
           )}
         </div>
-        <div className="text-6xl mb-4">🐻</div>
-        <div className="bg-white rounded-3xl p-6 shadow-lg w-full">
-          <p className="text-3xl leading-relaxed text-center text-gray-800 mb-6">
+        <div className="text-4xl sm:text-6xl mb-2 sm:mb-4 flex-shrink-0">🐻</div>
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-lg w-full flex-shrink-0">
+          <p className="text-xl leading-relaxed text-center text-gray-800 mb-4">
             {question.questionText}
           </p>
 
-          {/* 기억 입력 (Q1) */}
+          {/* 기억 입력 (Q1) - 어르신을 위해 크게 */}
           {question.type === 'memory-input' && (
-            <div className="flex flex-col items-center gap-4 mb-6">
-              <div className="grid grid-cols-3 gap-4 w-full">
+            <div className="flex flex-col items-center gap-3 mb-4">
+              <div className="grid grid-cols-3 gap-3 w-full">
                 {(question.correctAnswer as string[]).map((item, idx) => (
                   <div
                     key={idx}
-                    className="bg-[#EF6C00] text-white p-6 rounded-2xl text-center shadow-md min-h-[100px] flex items-center justify-center"
+                    className="bg-[#EF6C00] text-white p-6 rounded-2xl text-center shadow-md min-h-[120px] flex items-center justify-center"
                   >
-                    <div className="text-3xl font-bold">{item}</div>
+                    <div className="text-6xl font-bold">{item}</div>
                   </div>
                 ))}
               </div>
-              <p className="text-xl text-center text-gray-600">
+              <p className="text-base text-center text-gray-600">
                 3초 후 자동으로 넘어갑니다...
               </p>
             </div>
@@ -665,7 +957,7 @@ export default function Home() {
 
           {/* 시계 선택 */}
           {question.type === 'clock' && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
               {question.options?.map((option, idx) => {
                 // 시계 시간 설정: clock1=3시45분(정답), clock2=2시15분, clock3=4시20분, clock4=3시10분
                 const clockTimes = [
@@ -682,13 +974,13 @@ export default function Home() {
                   <button
                     key={idx}
                     onClick={() => handleAnswer(question.id, option)}
-                    className={`min-h-[140px] h-36 rounded-2xl transition-all shadow-lg touch-manipulation flex items-center justify-center ${
+                    className={`h-28 sm:h-36 rounded-xl sm:rounded-2xl transition-all shadow-lg touch-manipulation flex items-center justify-center ${
                       currentAnswer === option
                         ? 'bg-[#2E7D32] border-4 border-[#1B5E20] scale-105'
                         : 'bg-white border-2 border-gray-300 hover:border-[#2E7D32] active:scale-95'
                     }`}
                   >
-                    <div className="relative w-24 h-24 rounded-full border-4 border-gray-800">
+                    <div className="relative w-16 h-16 sm:w-24 sm:h-24 rounded-full border-4 border-gray-800">
                       {/* 시계 숫자 표시 (12, 3, 6, 9) */}
                       <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -mt-1 text-xs font-bold">12</div>
                       <div className="absolute right-0 top-1/2 transform translate-y-[-50%] mr-1 text-xs font-bold">3</div>
@@ -726,12 +1018,12 @@ export default function Home() {
 
           {/* 단일 선택 */}
           {question.type === 'choice' && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
               {question.options?.map((option, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleAnswer(question.id, option)}
-                  className={`min-h-[60px] h-20 text-2xl font-bold rounded-2xl transition-colors shadow-lg touch-manipulation ${
+                  className={`h-14 sm:h-20 text-lg sm:text-2xl font-bold rounded-xl sm:rounded-2xl transition-colors shadow-lg touch-manipulation ${
                     currentAnswer === option
                       ? 'bg-[#2E7D32] text-white'
                       : 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300'
@@ -743,24 +1035,26 @@ export default function Home() {
             </div>
           )}
 
-          {/* 숫자 거꾸로 입력 (Q2) */}
+          {/* 숫자 거꾸로 입력 (Q2) - 모바일 한 화면 최적화 */}
           {question.type === 'reverse-number-input' && (
-            <div className="space-y-6">
-              {/* 숫자 표시 (1초 간격으로 하나씩 표시) */}
-              <ReverseNumberDisplay sequence={[2, 9, 4, 8]} />
+            <div className="space-y-2">
+              {/* 숫자 표시 (1초 간격으로 하나씩 표시) - 작게 */}
+              <div className="transform scale-90 origin-top">
+                <ReverseNumberDisplay sequence={[2, 9, 4, 8]} />
+              </div>
               
-              {/* 입력된 숫자 표시 */}
-              <div className="bg-gray-100 p-4 rounded-xl text-center">
-                <div className="text-xl text-gray-600 mb-2">입력한 숫자:</div>
-                <div className="text-4xl font-bold text-gray-800 min-h-[60px] flex items-center justify-center gap-2">
+              {/* 입력된 숫자 표시 - 작게 */}
+              <div className="bg-gray-100 p-2 rounded-xl text-center">
+                <div className="text-xs text-gray-600 mb-1">입력한 숫자:</div>
+                <div className="text-xl font-bold text-gray-800 min-h-[30px] flex items-center justify-center gap-1">
                   {(currentAnswer as number[])?.map((num, idx) => (
-                    <span key={idx} className="px-2">{num}</span>
+                    <span key={idx} className="px-1">{num}</span>
                   )) || <span className="text-gray-400">-</span>}
                 </div>
               </div>
 
-              {/* 숫자 키패드 */}
-              <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
+              {/* 숫자 키패드 - 작게 */}
+              <div className="grid grid-cols-3 gap-1.5 max-w-[280px] mx-auto">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
                   <button
                     key={num}
@@ -771,53 +1065,55 @@ export default function Home() {
                       }
                     }}
                     disabled={(currentAnswer as number[])?.length >= 4}
-                    className="min-h-[70px] h-20 text-3xl font-bold rounded-xl bg-gray-200 text-gray-800 hover:bg-gray-300 active:bg-gray-400 disabled:bg-gray-100 disabled:text-gray-400 touch-manipulation transition-colors"
+                    className="h-12 text-xl font-bold rounded-lg bg-gray-200 text-gray-800 active:bg-gray-400 disabled:bg-gray-100 disabled:text-gray-400 touch-manipulation transition-colors"
                   >
                     {num}
                   </button>
                 ))}
               </div>
 
-              {/* 삭제 버튼 */}
-              {(currentAnswer as number[])?.length > 0 && (
-                <button
-                  onClick={() => {
-                    const current = (currentAnswer as number[]) || [];
-                    handleAnswer(question.id, current.slice(0, -1) as number[]);
-                  }}
-                  className="w-full min-h-[60px] h-16 bg-red-500 text-white text-2xl font-bold rounded-xl hover:bg-red-600 active:bg-red-700 transition-colors touch-manipulation"
-                >
-                  지우기
-                </button>
-              )}
-
-              {/* 확인 버튼 (4개 모두 입력 시 자동) */}
-              {(currentAnswer as number[])?.length === 4 && (
-                <button
-                  onClick={handleNextStep}
-                  className="w-full min-h-[60px] h-16 bg-[#2E7D32] text-white text-2xl font-bold rounded-2xl hover:bg-[#1B5E20] active:bg-[#1B5E20] transition-colors shadow-lg touch-manipulation"
-                >
-                  확인하기
-                </button>
-              )}
+              {/* 삭제/확인 버튼 - 한 줄에 */}
+              <div className="grid grid-cols-2 gap-2">
+                {(currentAnswer as number[])?.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const current = (currentAnswer as number[]) || [];
+                      handleAnswer(question.id, current.slice(0, -1) as number[]);
+                    }}
+                    className="h-10 bg-red-500 text-white text-base font-bold rounded-xl active:bg-red-700 transition-colors touch-manipulation"
+                  >
+                    지우기
+                  </button>
+                )}
+                {(currentAnswer as number[])?.length === 4 && (
+                  <button
+                    onClick={handleNextStep}
+                    className={`h-10 bg-[#2E7D32] text-white text-base font-bold rounded-xl active:bg-[#1B5E20] transition-colors shadow-lg touch-manipulation ${
+                      (currentAnswer as number[])?.length > 0 ? '' : 'col-span-2'
+                    }`}
+                  >
+                    확인하기
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
           {/* Stroop Test (Q3) */}
           {question.type === 'stroop' && (
-            <div className="space-y-6">
+            <div className="space-y-3 sm:space-y-6">
               {/* "노랑"이라는 글자가 파란색으로 표시 */}
-              <div className="flex items-center justify-center min-h-[200px] bg-gray-50 rounded-2xl">
-                <div className="text-7xl font-bold" style={{ color: '#3B82F6' }}>
+              <div className="flex items-center justify-center min-h-[120px] sm:min-h-[200px] bg-gray-50 rounded-xl sm:rounded-2xl">
+                <div className="text-5xl sm:text-7xl font-bold" style={{ color: '#3B82F6' }}>
                   노랑
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 {question.options?.map((option, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleAnswer(question.id, option)}
-                    className={`min-h-[80px] h-24 text-2xl font-bold rounded-2xl transition-colors shadow-lg touch-manipulation ${
+                    className={`h-16 sm:h-24 text-lg sm:text-2xl font-bold rounded-xl sm:rounded-2xl transition-colors shadow-lg touch-manipulation ${
                       currentAnswer === option
                         ? 'bg-[#2E7D32] text-white scale-105'
                         : option === '파랑'
@@ -836,14 +1132,58 @@ export default function Home() {
             </div>
           )}
 
-          {/* 시간 계산 (Q5) */}
+          {/* 연속 뺄셈 (Q5) - MMSE 핵심 문항 (3단계로 개선) */}
+          {question.type === 'serial-subtraction' && (
+            <div className="space-y-4 sm:space-y-8">
+              <div className="bg-orange-100 p-4 sm:p-6 rounded-xl sm:rounded-2xl text-center">
+                <div className="text-2xl sm:text-4xl font-bold text-gray-800 mb-2">
+                  100 <span className="text-red-500">- 7</span> <span className="text-red-500">- 7</span> <span className="text-red-500">- 7</span> = <span className="text-[#2E7D32] text-3xl sm:text-5xl">?</span>
+                </div>
+                <p className="text-gray-600 text-sm sm:text-lg mb-2">
+                  (100에서 7을 빼고, 남은 숫자에서 또 7을 빼고, 또 7을 뺍니다)
+                </p>
+                {showHint && (
+                  <div className="bg-blue-100 border-2 border-blue-300 p-2 sm:p-3 rounded-lg mt-3">
+                    <p className="text-xs sm:text-sm text-blue-800 font-semibold">
+                      💡 단계별 힌트: 첫 번째 100-7=93, 두 번째 93-7=86, 세 번째 86-7=79
+                    </p>
+                  </div>
+                )}
+                {!showHint && (
+                  <div className="bg-white/60 p-2 sm:p-3 rounded-lg mt-3">
+                    <p className="text-xs sm:text-sm text-gray-700">
+                      💡 힌트: 첫 번째 100-7=93, 두 번째 93-7=86, 세 번째 86-7=?
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:gap-5">
+                {question.options?.map((option, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleAnswer(question.id, option)}
+                    className={`h-20 sm:h-28 text-2xl sm:text-4xl font-bold rounded-xl sm:rounded-2xl transition-all shadow-lg touch-manipulation border-b-4 ${
+                      currentAnswer === option
+                        ? 'bg-[#2E7D32] text-white border-[#1B5E20] transform translate-y-1'
+                        : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-50 active:border-t-4 active:border-b-0'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 시간 계산 (Q5) - 레거시, 삭제 예정 */}
           {question.type === 'time-calculation' && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
               {question.options?.map((option, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleAnswer(question.id, option)}
-                  className={`min-h-[80px] h-24 text-2xl font-bold rounded-2xl transition-colors shadow-lg touch-manipulation ${
+                  className={`h-16 sm:h-24 text-lg sm:text-2xl font-bold rounded-xl sm:rounded-2xl transition-colors shadow-lg touch-manipulation ${
                     currentAnswer === option
                       ? 'bg-[#2E7D32] text-white'
                       : 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300'
@@ -855,27 +1195,74 @@ export default function Home() {
             </div>
           )}
 
-          {/* 'ㅎ' 찾기 (Q4) */}
-          {question.type === 'character-count' && (
-            <div className="space-y-6">
-              {/* 글자 표시 영역 */}
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-8 rounded-2xl text-center">
-                <div className="text-5xl font-bold text-gray-800 leading-relaxed space-y-2">
-                  <div>호 호 흐 흐 호</div>
-                  <div>후 흐 호</div>
+          {/* 기호 찾기 (Q4) - MoCA 주의력 변형 (개선됨) */}
+          {question.type === 'symbol-count' && (
+            <div className="space-y-3 sm:space-y-6">
+              {/* 기호 표시 영역 - 더 어렵게: 네잎클로버🍀를 섞어서 혼동 증가 (색상 동일하게) */}
+              <div className="bg-white border-2 border-gray-200 p-3 rounded-xl text-center shadow-inner">
+                <div className="grid grid-cols-5 gap-1 text-lg leading-relaxed select-none">
+                  {/* 네잎클로버🍀를 섞어서 클로버♣️와 혼동 유발 (클로버 7개, 네잎클로버 5개) - 색상 동일하게 (완전 회색조) */}
+                  <span>♠️</span> <span>♣️</span> <span style={{ filter: 'grayscale(100%) brightness(0.2) contrast(2)' }}>🍀</span> <span>♦️</span> <span>♣️</span>
+                  <span>♥️</span> <span>♠️</span> <span>♣️</span> <span style={{ filter: 'grayscale(100%) brightness(0.2) contrast(2)' }}>🍀</span> <span>♥️</span>
+                  <span>♣️</span> <span>♦️</span> <span style={{ filter: 'grayscale(100%) brightness(0.2) contrast(2)' }}>🍀</span> <span>♣️</span> <span>♠️</span>
+                  <span>♥️</span> <span>♣️</span> <span style={{ filter: 'grayscale(100%) brightness(0.2) contrast(2)' }}>🍀</span> <span>♠️</span> <span>♣️</span>
+                  <span>♦️</span> <span style={{ filter: 'grayscale(100%) brightness(0.2) contrast(2)' }}>🍀</span> <span>♥️</span> <span>♠️</span> <span>♦️</span>
                 </div>
-                <p className="text-xl text-gray-600 mt-4">
-                  "ㅎ"이 몇 개인지 세어보세요
+                <p className="text-sm text-[#EF6C00] font-bold mt-3 bg-orange-50 inline-block px-3 py-1.5 rounded-full">
+                  ♣️ 클로버(세잎)의 개수는?
                 </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  (네잎클로버🍀, 스페이드♠️, 하트♥️, 다이아몬드♦️는 제외하세요)
+                </p>
+                {showHint && (
+                  <div className="bg-blue-100 border-2 border-blue-300 p-2 rounded-lg mt-2">
+                    <p className="text-xs text-blue-800 font-semibold">
+                      💡 힌트: 네잎클로버🍀는 제외하고, 세잎클로버♣️만 세세요. 첫 줄 2개, 둘째 줄 1개, 셋째 줄 2개, 넷째 줄 2개 = 총 7개
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* 선택 버튼 */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 {question.options?.map((option, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleAnswer(question.id, option)}
-                    className={`min-h-[80px] h-24 text-2xl font-bold rounded-2xl transition-colors shadow-lg touch-manipulation ${
+                    className={`h-16 sm:h-24 text-lg sm:text-2xl font-bold rounded-xl sm:rounded-2xl transition-colors shadow-lg touch-manipulation ${
+                      currentAnswer === option
+                        ? 'bg-[#2E7D32] text-white scale-105'
+                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 'ㅎ' 찾기 (Q4) - 레거시, 삭제 예정 */}
+          {question.type === 'character-count' && (
+            <div className="space-y-3 sm:space-y-6">
+              {/* 글자 표시 영역 */}
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 sm:p-8 rounded-xl sm:rounded-2xl text-center">
+                <div className="text-3xl sm:text-5xl font-bold text-gray-800 leading-relaxed space-y-1 sm:space-y-2">
+                  <div>호 하 흐 호 후</div>
+                  <div>허 호 하</div>
+                </div>
+                <p className="text-base sm:text-xl text-gray-600 mt-2 sm:mt-4">
+                  "호"가 몇 개인지 세어보세요
+                </p>
+              </div>
+
+              {/* 선택 버튼 */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                {question.options?.map((option, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleAnswer(question.id, option)}
+                    className={`h-16 sm:h-24 text-lg sm:text-2xl font-bold rounded-xl sm:rounded-2xl transition-colors shadow-lg touch-manipulation ${
                       currentAnswer === option
                         ? 'bg-[#2E7D32] text-white scale-105'
                         : 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300'
@@ -890,12 +1277,12 @@ export default function Home() {
 
           {/* 복합 계산 (Q6) */}
           {question.type === 'complex-calculation' && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
               {question.options?.map((option, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleAnswer(question.id, option)}
-                  className={`min-h-[80px] h-24 text-2xl font-bold rounded-2xl transition-colors shadow-lg touch-manipulation ${
+                  className={`h-16 sm:h-24 text-lg sm:text-2xl font-bold rounded-xl sm:rounded-2xl transition-colors shadow-lg touch-manipulation ${
                     currentAnswer === option
                       ? 'bg-[#2E7D32] text-white'
                       : 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300'
@@ -907,10 +1294,76 @@ export default function Home() {
             </div>
           )}
 
-          {/* 다중 선택 (Q6: 지연 회상) - 3개 선택 */}
-          {question.type === 'multi-choice' && (
+          {/* 순발력 테스트 (Q9) - 반응 속도 측정 */}
+          {question.type === 'reaction-speed' && (
+            <ReactionSpeedTest
+              onComplete={(reactionTime: number) => {
+                setGameState((prev) => ({ ...prev, reactionTime }));
+                handleAnswer(question.id, 'completed');
+                // 바로 다음 단계로
+                handleNextStep();
+              }}
+            />
+          )}
+
+          {/* 가족 부양 질문 (Q10) - 현실 자각 설문 */}
+          {question.type === 'family-care' && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="bg-orange-50 border-2 border-orange-300 p-4 rounded-xl mb-4">
+                <p className="text-base text-orange-800 text-center leading-relaxed">
+                  💭 잠깐, 중요한 질문이 하나 남았습니다
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                {question.options?.map((option, idx) => {
+                  const selected = currentAnswer === option;
+                  let warningMessage = '';
+                  
+                  if (option === '배우자') {
+                    warningMessage = '배우자님도 연로하실 텐데 괜찮을까요?';
+                  } else if (option === '자녀') {
+                    warningMessage = '자녀분의 경제활동이 중단될 수도 있습니다.';
+                  } else if (option === '간병인/요양병원') {
+                    warningMessage = '매달 400만 원 이상, 준비되셨나요?';
+                  } else if (option === '잘 모르겠다') {
+                    warningMessage = '준비가 되어 있지 않다면 지금부터 시작해야 합니다.';
+                  }
+                  
+                  return (
+                    <div key={idx}>
+                      <button
+                        onClick={() => {
+                          handleAnswer(question.id, option);
+                          // 1.5초 후 자동으로 다음 단계로
+                          setTimeout(() => {
+                            handleNextStep();
+                          }, 1500);
+                        }}
+                        className={`w-full h-14 text-base font-bold rounded-xl transition-all touch-manipulation border-2 ${
+                          selected
+                            ? 'bg-[#EF6C00] text-white border-[#E65100] scale-105'
+                            : 'bg-white text-gray-800 border-gray-300 active:bg-gray-50'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                      {selected && warningMessage && (
+                        <div className="mt-2 p-2 bg-red-50 border-l-4 border-red-500 rounded-r">
+                          <p className="text-xs text-red-800 text-center">{warningMessage}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 다중 선택 (Q7: 지연 회상) - 어르신을 위해 크게, 한 화면에 */}
+          {question.type === 'multi-choice' && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-2">
                 {question.options?.map((option, idx) => {
                   const selected = (currentAnswer as string[])?.includes(option) || false;
                   return (
@@ -918,12 +1371,12 @@ export default function Home() {
                       key={idx}
                       onClick={() => handleMultipleSelect(question.id, option)}
                       disabled={(currentAnswer as string[])?.length >= 5 && !selected}
-                      className={`min-h-[60px] h-20 text-xl font-bold rounded-xl transition-all touch-manipulation ${
+                      className={`h-20 text-4xl font-bold rounded-xl transition-all touch-manipulation border-2 ${
                         selected
-                          ? 'bg-[#2E7D32] text-white scale-105'
+                          ? 'bg-[#2E7D32] text-white border-[#1B5E20] scale-105'
                           : (currentAnswer as string[])?.length >= 5
-                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                            ? 'bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed'
+                            : 'bg-gray-100 text-gray-800 border-gray-300 active:bg-gray-200'
                       }`}
                     >
                       {option}
@@ -931,13 +1384,13 @@ export default function Home() {
                   );
                 })}
               </div>
-              <p className="text-xl text-center text-gray-600">
+              <p className="text-sm text-center text-gray-600">
                 선택된 항목: {(currentAnswer as string[])?.length || 0}개
               </p>
               {(currentAnswer as string[])?.length >= 3 && (
                 <button
                   onClick={handleNextStep}
-                  className="w-full min-h-[60px] h-16 bg-[#2E7D32] text-white text-2xl font-bold rounded-2xl hover:bg-[#1B5E20] active:bg-[#1B5E20] transition-colors shadow-lg touch-manipulation"
+                  className="w-full h-12 bg-[#2E7D32] text-white text-base font-bold rounded-xl active:bg-[#1B5E20] transition-colors shadow-lg touch-manipulation"
                 >
                   확인하기
                 </button>
@@ -949,5 +1402,5 @@ export default function Home() {
     );
   };
 
-  return <main className="min-h-screen bg-gradient-to-b from-green-50 to-orange-50">{renderQuestion()}</main>;
+  return <main className="h-screen overflow-hidden bg-gradient-to-b from-green-50 to-orange-50">{renderQuestion()}</main>;
 }

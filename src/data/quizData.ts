@@ -1,6 +1,6 @@
 export interface QuizQuestion {
   id: number;
-  type: 'memory-input' | 'choice' | 'multi-choice' | 'clock' | 'reverse-number-input' | 'stroop' | 'time-calculation' | 'complex-calculation' | 'character-count';
+  type: 'memory-input' | 'choice' | 'multi-choice' | 'clock' | 'reverse-number-input' | 'stroop' | 'time-calculation' | 'complex-calculation' | 'character-count' | 'symbol-count' | 'serial-subtraction' | 'reaction-speed' | 'family-care';
   questionText: string;
   options?: string[];
   correctAnswer: string | string[] | number[];
@@ -39,23 +39,23 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
   },
   {
     id: 4,
-    type: 'character-count',
-    questionText: '아래 글자들 중에서 "ㅎ"이 몇 개 있는지 세어보세요.',
-    correctAnswer: '5개',
-    options: ['3개', '4개', '5개', '6개'],
+    type: 'symbol-count',
+    questionText: "집중하세요! 아래 그림들 중에서 '♣️(세잎클로버)'가 총 몇 개인지 세어보세요.",
+    correctAnswer: '7개',
+    options: ['5개', '6개', '7개', '8개'],
     score: 15,
     category: '주의력',
-    timeLimit: 15,
+    timeLimit: 12, // 적당한 난이도
   },
   {
     id: 5,
-    type: 'time-calculation',
-    questionText: '지금은 오후 2시 20분입니다. 1시간 45분 전은 몇 시였을까요?',
-    options: ['12시 35분', '1시 35분', '12시 55분', '1시 15분'],
-    correctAnswer: '12시 35분',
+    type: 'serial-subtraction',
+    questionText: "암산 문제입니다. 100에서 7을 빼고, 그 숫자에서 또 7을 빼고, 또 7을 뺍니다. 정답은 얼마일까요?",
+    correctAnswer: '79',
+    options: ['76', '79', '86', '83'],
     score: 15,
     category: '계산력',
-    timeLimit: 15,
+    timeLimit: 25,
   },
   {
     id: 6,
@@ -70,7 +70,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
   {
     id: 7,
     type: 'multi-choice',
-    questionText: '테스트 종료! 아까 맨 처음에 봤던 3가지 기억나시나요?',
+    questionText: '아까 맨 처음에 봤던 그림 3가지를 기억나시나요?',
     options: ['🚂', '🐶', '🌲', '🚲', '⚽', '🎩', '👓', '🍇', '⌚'],
     correctAnswer: ['🚂', '🌲', '⚽'], // 기차, 소나무, 축구공
     score: 15, // 지연 회상 점수 조정
@@ -84,6 +84,23 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     correctAnswer: '든든이',
     score: 5, // 지남력 점수 낮춤
     category: '지남력',
+  },
+  {
+    id: 9,
+    type: 'reaction-speed',
+    questionText: '화면이 초록색으로 변하면 즉시 터치하세요!',
+    correctAnswer: 'completed', // 완료만 하면 됨
+    score: 0, // 점수는 반응 속도로 평가
+    category: '주의력',
+  },
+  {
+    id: 10,
+    type: 'family-care',
+    questionText: '만약 10년 뒤, 혼자 생활하기 어려워진다면... 누가 도와주실까요?',
+    options: ['배우자', '자녀', '간병인/요양병원', '잘 모르겠다'],
+    correctAnswer: '', // 정답 없음, 선택만 기록
+    score: 0, // 점수 없음
+    category: '판단력',
   },
 ];
 
