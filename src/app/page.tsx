@@ -206,11 +206,19 @@ function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: bool
 
   // 타이머
   useEffect(() => {
-    if (phase === 'play' && timeLeft > 0 && matches < 5) { // 5쌍으로 변경
+    // 완료 상태이거나 5쌍을 모두 맞췄으면 타이머 중지
+    if (phase !== 'play' || matches >= 5) {
+      return;
+    }
+    
+    if (timeLeft > 0) {
       const timer = setInterval(() => {
         setTimeLeft(prev => {
-          if (prev <= 1) {
-            onComplete(false, attempts);
+          // 완료 상태이거나 5쌍을 모두 맞췄으면 타이머 중지
+          if (prev <= 1 || matches >= 5) {
+            if (prev <= 1) {
+              onComplete(false, attempts);
+            }
             return 0;
           }
           return prev - 1;
@@ -241,8 +249,9 @@ function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: bool
           setMatches(m => {
             const newMatches = m + 1;
             if (newMatches === 5) {
+              // 5쌍을 모두 맞췄으면 즉시 타이머 중지
+              setPhase('complete');
               setTimeout(() => {
-                setPhase('complete');
                 setAttempts(prevAttempts => {
                   onComplete(true, prevAttempts + 1);
                   return prevAttempts;
@@ -412,10 +421,10 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
               key={`${num}-${index}`}
               onClick={() => handleNumClick(num)}
               disabled={isComplete || isFound}
-              className={`h-16 text-xl font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center justify-center touch-manipulation ${
+              className={`h-16 text-xl font-bold rounded-lg flex items-center justify-center touch-manipulation ${
                 isFound 
                   ? 'invisible' // 이미 찾은 숫자는 숨김
-                  : 'bg-white text-gray-800 hover:bg-gray-50' // 힌트 제거 (난이도 상승)
+                  : 'bg-white text-gray-800' // 기본 스타일만 (hover, shadow 등 모든 효과 제거)
               }`}
             >
               {num}
