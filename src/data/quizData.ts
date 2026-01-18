@@ -1,6 +1,6 @@
 export interface QuizQuestion {
   id: number;
-  type: 'memory-input' | 'choice' | 'multi-choice' | 'clock' | 'reverse-number-input' | 'stroop' | 'time-calculation' | 'complex-calculation' | 'character-count' | 'symbol-count' | 'serial-subtraction' | 'reaction-speed' | 'family-care';
+  type: 'memory-input' | 'choice' | 'multi-choice' | 'clock' | 'reverse-number-input' | 'stroop' | 'time-calculation' | 'complex-calculation' | 'character-count' | 'symbol-count' | 'serial-subtraction' | 'reaction-speed' | 'family-care' | 'card-match' | 'schulte-table' | 'whack-a-mole';
   questionText: string;
   options?: string[];
   correctAnswer: string | string[] | number[];
@@ -20,6 +20,15 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
   },
   {
     id: 2,
+    type: 'card-match',
+    questionText: '카드를 3초 동안 기억하세요! 그 다음 짝을 맞춰주세요.',
+    correctAnswer: 'completed', // 완료만 하면 됨
+    score: 15,
+    category: '기억력',
+    timeLimit: 30, // 30초 제한
+  },
+  {
+    id: 3,
     type: 'reverse-number-input',
     questionText: '숫자가 하나씩 나타납니다. 보신 숫자를 거꾸로 입력하세요!',
     correctAnswer: [8, 4, 9, 2], // 표시될 순서: 2-9-4-8, 거꾸로: 8-4-9-2
@@ -28,7 +37,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     timeLimit: 20, // 15초는 짧아서 20초로
   },
   {
-    id: 3,
+    id: 4,
     type: 'stroop',
     questionText: '글자 내용 말고, 글자 색깔을 선택하세요!',
     options: ['노랑', '빨강', '파랑', '검정'],
@@ -38,7 +47,16 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     timeLimit: 15,
   },
   {
-    id: 4,
+    id: 5,
+    type: 'schulte-table',
+    questionText: '1부터 16까지 숫자를 순서대로 최대한 빨리 찾아주세요!',
+    correctAnswer: 'completed', // 완료만 하면 됨
+    score: 15,
+    category: '주의력',
+    timeLimit: 30, // 30초 제한
+  },
+  {
+    id: 6,
     type: 'symbol-count',
     questionText: "집중하세요! 아래 그림들 중에서 '♣️(세잎클로버)'가 총 몇 개인지 세어보세요.",
     correctAnswer: '7개',
@@ -48,7 +66,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     timeLimit: 12, // 적당한 난이도
   },
   {
-    id: 5,
+    id: 7,
     type: 'serial-subtraction',
     questionText: "암산 문제입니다. 100에서 7을 빼고, 그 숫자에서 또 7을 빼고, 또 7을 뺍니다. 정답은 얼마일까요?",
     correctAnswer: '79',
@@ -58,7 +76,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     timeLimit: 25,
   },
   {
-    id: 6,
+    id: 8,
     type: 'complex-calculation',
     questionText: '10,000원을 냈습니다. 1,500원짜리 김밥 3줄과 500원짜리 물 1개를 샀습니다. 거스름돈은?',
     options: ['4,000원', '4,500원', '5,000원', '5,500원'],
@@ -68,7 +86,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     timeLimit: 15,
   },
   {
-    id: 7,
+    id: 9,
     type: 'multi-choice',
     questionText: '아까 맨 처음에 봤던 그림 3가지를 기억나시나요?',
     options: ['🚂', '🐶', '🌲', '🚲', '⚽', '🎩', '👓', '🍇', '⌚'],
@@ -77,7 +95,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     category: '기억력',
   },
   {
-    id: 8,
+    id: 10,
     type: 'choice',
     questionText: '오늘 검사를 도와주고 있는 제 이름은 무엇일까요?',
     options: ['곰돌이', '든든이', '똑똑이', '의사쌤'],
@@ -86,7 +104,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     category: '지남력',
   },
   {
-    id: 9,
+    id: 11,
     type: 'reaction-speed',
     questionText: '화면이 초록색으로 변하면 즉시 터치하세요!',
     correctAnswer: 'completed', // 완료만 하면 됨
@@ -94,7 +112,16 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     category: '주의력',
   },
   {
-    id: 10,
+    id: 12,
+    type: 'whack-a-mole',
+    questionText: '빨간색 곰돌이가 나오면 누르고, 파란색 곰돌이가 나오면 누르지 마세요!',
+    correctAnswer: 'completed', // 완료만 하면 됨
+    score: 15,
+    category: '억제능력',
+    timeLimit: 20, // 20초 동안
+  },
+  {
+    id: 13,
     type: 'family-care',
     questionText: '만약 10년 뒤, 혼자 생활하기 어려워진다면... 누가 도와주실까요?',
     options: ['배우자', '자녀', '간병인/요양병원', '잘 모르겠다'],

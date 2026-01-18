@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { QUIZ_QUESTIONS, QuizQuestion, CategoryName, CATEGORIES, UserProfile, getNormalRange } from '../data/quizData';
 
-type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11; // -1: 인트로, 0-9: 문제(10개), 10: 결과
+type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13; // -1: 인트로, 0-12: 문제(13개), 13: 결과
 
 // 숫자 순차 표시 컴포넌트 (Q2용)
 function ReverseNumberDisplay({ sequence }: { sequence: number[] }) {
@@ -173,6 +173,470 @@ function ReactionSpeedTest({ onComplete }: { onComplete: (reactionTime: number) 
   );
 }
 
+// 카드 짝 맞추기 게임 (업그레이드 버전: 4쌍, 시간제한, 시도횟수)
+function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: boolean, attempts: number) => void; timeLimit: number }) {
+  const [cards, setCards] = useState<{ id: number; icon: string; isFlipped: boolean; isMatched: boolean }[]>([]);
+  const [flippedIndices, setFlippedIndices] = useState<number[]>([]);
+  const [matches, setMatches] = useState(0);
+  const [attempts, setAttempts] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(timeLimit);
+  const [showWrong, setShowWrong] = useState(false);
+  const [phase, setPhase] = useState<'memorize' | 'play' | 'complete'>('memorize');
+
+  useEffect(() => {
+    // 완료 상태면 더 이상 실행하지 않음
+    if (phase === 'complete' || phase === 'play') return;
+    
+    // 4쌍 (8장) 카드 생성
+    const icons = ['🍎', '🍌', '🍇', '🍊'];
+    const deck = [...icons, ...icons]
+      .map((icon, index) => ({ id: index, icon, isFlipped: true, isMatched: false }))
+      .sort(() => Math.random() - 0.5);
+    
+    setCards(deck);
+
+    // 3초 동안 보여주고 다시 뒤집기
+    const timer = setTimeout(() => {
+      setCards(prev => prev.map(card => ({ ...card, isFlipped: false })));
+      setPhase('play');
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 타이머
+  useEffect(() => {
+    if (phase === 'play' && timeLeft > 0 && matches < 4) {
+      const timer = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            onComplete(false, attempts);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [phase, timeLeft, matches, attempts, onComplete]);
+
+  const handleCardClick = (index: number) => {
+    if (phase !== 'play' || flippedIndices.length >= 2 || cards[index].isFlipped || cards[index].isMatched) return;
+
+    const newCards = [...cards];
+    newCards[index].isFlipped = true;
+    setCards(newCards);
+    
+    const newFlipped = [...flippedIndices, index];
+    setFlippedIndices(newFlipped);
+
+    if (newFlipped.length === 2) {
+      setAttempts(prev => prev + 1);
+      const [first, second] = newFlipped;
+      if (cards[first].icon === cards[second].icon) {
+        // 정답!
+        setTimeout(() => {
+          setCards(prev => prev.map((c, i) => (i === first || i === second ? { ...c, isMatched: true } : c)));
+          setFlippedIndices([]);
+          setMatches(m => {
+            const newMatches = m + 1;
+            if (newMatches === 4) {
+              setTimeout(() => {
+                setPhase('complete');
+                onComplete(true, attempts + 1);
+              }, 500);
+            }
+            return newMatches;
+          });
+        }, 500);
+      } else {
+        // 땡! 다시 뒤집기
+        setShowWrong(true);
+        setTimeout(() => {
+          setCards(prev => prev.map((c, i) => (i === first || i === second ? { ...c, isFlipped: false } : c)));
+          setFlippedIndices([]);
+          setShowWrong(false);
+        }, 1000);
+      }
+    }
+  };
+
+  if (phase === 'memorize') {
+    return (
+      <div className="space-y-4 text-center">
+        <div className="text-2xl font-bold text-gray-800 mb-2">카드를 3초 동안 기억하세요!</div>
+        <div className="grid grid-cols-4 gap-2 max-w-[320px] mx-auto">
+          {cards.map((card, index) => (
+            <div
+              key={index}
+              className="h-20 text-4xl rounded-xl bg-white shadow-lg flex items-center justify-center animate-pulse"
+            >
+              {card.icon}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'complete') {
+    return (
+      <div className="text-center space-y-4">
+        <div className="text-5xl mb-2">🎉</div>
+        <div className="text-2xl font-bold text-[#2E7D32]">성공!</div>
+        <div className="text-base text-gray-600">시도 횟수: {attempts}회</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-between items-center px-2">
+        <div className="text-lg font-bold text-gray-700">
+          맞춘 짝: {matches}/4
+        </div>
+        <div className={`text-lg font-bold ${timeLeft <= 10 ? 'text-red-600 animate-pulse' : 'text-gray-700'}`}>
+          ⏱ {timeLeft}초
+        </div>
+      </div>
+      {showWrong && (
+        <div className="text-center text-4xl font-bold text-red-600 animate-bounce">
+          땡! ❌
+        </div>
+      )}
+      <div className="grid grid-cols-4 gap-2 max-w-[320px] mx-auto">
+        {cards.map((card, index) => (
+          <button
+            key={index}
+            onClick={() => handleCardClick(index)}
+            disabled={card.isMatched}
+            className={`h-20 text-4xl rounded-xl transition-all duration-300 transform shadow-lg flex items-center justify-center touch-manipulation ${
+              card.isFlipped || card.isMatched
+                ? 'bg-white rotate-y-180 scale-105'
+                : 'bg-[#EF6C00] rotate-y-0 active:scale-95'
+            } ${card.isMatched ? 'opacity-50' : ''}`}
+          >
+            {card.isFlipped || card.isMatched ? card.icon : '❓'}
+          </button>
+        ))}
+      </div>
+      <div className="text-center text-sm text-gray-600">
+        시도 횟수: {attempts}회
+      </div>
+    </div>
+  );
+}
+
+// 슐테 테이블 게임 (업그레이드 버전: 4x4, 16개, 시간제한, 힌트 기능)
+function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number, isSuccess: boolean) => void; timeLimit: number }) {
+  // 숫자 배열을 한 번만 생성하고 고정 (useState 초기값으로)
+  const [numbers] = useState<number[]>(() => {
+    // 컴포넌트가 처음 마운트될 때만 실행
+    return Array.from({ length: 16 }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+  });
+  
+  const [currentNum, setCurrentNum] = useState(1);
+  const [startTime, setStartTime] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(timeLimit);
+  const [wrongClick, setWrongClick] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [showHint, setShowHint] = useState(false); // 5초 후 힌트
+  const [showLocation, setShowLocation] = useState(false); // 10초 후 위치 표시
+  const [hintStartTime, setHintStartTime] = useState(0); // 현재 숫자 찾기 시작 시간
+
+  useEffect(() => {
+    const start = Date.now();
+    setStartTime(start);
+    setHintStartTime(start); // 첫 숫자 찾기 시작 시간
+    
+    // 타이머 (1초마다 감소)
+    const timer = setInterval(() => {
+      if (isComplete) {
+        clearInterval(timer);
+        return;
+      }
+      
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          setIsComplete(true);
+          onComplete(timeLimit, false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [timeLimit, isComplete, onComplete]);
+
+  // 현재 숫자를 찾는 데 걸린 시간 체크 (힌트 표시)
+  useEffect(() => {
+    if (isComplete || currentNum === 1) return;
+    
+    const timer = setInterval(() => {
+      const elapsed = (Date.now() - hintStartTime) / 1000;
+      
+      if (elapsed >= 10) {
+        // 10초 후에도 못 찾으면 위치 표시
+        setShowLocation(true);
+      } else if (elapsed >= 5) {
+        // 5초 후에도 못 찾으면 힌트 표시
+        setShowHint(true);
+      }
+    }, 100);
+    
+    return () => clearInterval(timer);
+  }, [currentNum, hintStartTime, isComplete]);
+
+  const handleNumClick = (num: number) => {
+    if (isComplete) return;
+    
+    if (num === currentNum) {
+      // 정답을 누름
+      setShowHint(false);
+      setShowLocation(false);
+      
+      if (num === 16) {
+        // 끝! (16까지 다 찾음)
+        setIsComplete(true);
+        onComplete((Date.now() - startTime) / 1000, true);
+      } else {
+        // 다음 숫자로 이동
+        setCurrentNum(n => n + 1);
+        setHintStartTime(Date.now()); // 다음 숫자 찾기 시작 시간 초기화
+      }
+    } else {
+      // 틀린 숫자 누름
+      setWrongClick(true);
+      setTimeout(() => setWrongClick(false), 300);
+    }
+  };
+
+  return (
+    <div className="space-y-3 text-center">
+      <div className="text-xl font-bold text-gray-700">
+        찾아야 할 숫자: <span className="text-4xl text-[#2E7D32] inline-block font-black animate-bounce">{currentNum}</span>
+      </div>
+      {showHint && !showLocation && (
+        <div className="text-base font-bold text-orange-600 animate-pulse">
+          💡 힌트: {currentNum}번을 찾아보세요!
+        </div>
+      )}
+      {showLocation && (
+        <div className="text-base font-bold text-red-600 animate-bounce">
+          📍 위치를 표시합니다!
+        </div>
+      )}
+      {wrongClick && (
+        <div className="text-2xl font-bold text-red-600 animate-bounce">
+          ❌ 틀렸어요!
+        </div>
+      )}
+      <div className="grid grid-cols-4 gap-1.5 max-w-[280px] mx-auto bg-gray-200 p-2 rounded-xl">
+        {numbers.map((num, index) => {
+          const isCurrentNum = num === currentNum;
+          const shouldHighlight = showLocation && isCurrentNum;
+          
+          return (
+            <button
+              key={`${num}-${index}`}
+              onClick={() => handleNumClick(num)}
+              disabled={isComplete || num < currentNum}
+              className={`h-16 text-xl font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center justify-center touch-manipulation ${
+                num < currentNum 
+                  ? 'invisible' // 이미 찾은 숫자는 숨김
+                  : shouldHighlight
+                    ? 'bg-red-500 text-white scale-125 ring-4 ring-red-300 animate-pulse' // 10초 후 위치 표시
+                    : isCurrentNum && showHint
+                      ? 'bg-orange-300 text-white scale-110 ring-2 ring-orange-500' // 5초 후 힌트
+                      : 'bg-white text-gray-800 hover:bg-gray-50' // 숫자 강조 제거
+              }`}
+            >
+              {num}
+            </button>
+          );
+        })}
+      </div>
+      <div className="text-sm text-gray-600">
+        진행: {currentNum - 1}/16
+      </div>
+    </div>
+  );
+}
+
+// 두더지 잡기 게임 (Go/No-Go 테스트)
+function WhackAMoleGame({ onComplete, timeLimit }: { onComplete: (accuracy: number, correctHits: number, wrongHits: number) => void; timeLimit: number }) {
+  const [phase, setPhase] = useState<'instruction' | 'playing' | 'complete'>('instruction');
+  const [moles, setMoles] = useState<{ id: number; color: 'red' | 'blue'; position: number; active: boolean }[]>([]);
+  const [score, setScore] = useState({ correct: 0, wrong: 0, total: 0 });
+  const [timeLeft, setTimeLeft] = useState(timeLimit);
+  const [isActive, setIsActive] = useState(false);
+  const [showFeedback, setShowFeedback] = useState<{ type: 'correct' | 'wrong'; position: number } | null>(null);
+
+  // 게임 시작
+  const handleStartGame = () => {
+    setPhase('playing');
+    setIsActive(true);
+    // 게임 시작 시 타이머 초기화 (게임 시작 후부터 시간이 가도록)
+    setTimeLeft(timeLimit);
+  };
+
+  useEffect(() => {
+    if (phase !== 'playing' || !isActive) return;
+
+    // 0.8~1.5초마다 새로운 두더지 생성 (한 개씩만)
+    const spawnInterval = setInterval(() => {
+      if (timeLeft <= 0) return;
+      
+      // 빨간색 70%, 파란색 30% 확률로 조정 (빨간색이 더 많이 나오도록)
+      const color = Math.random() < 0.7 ? 'red' : 'blue';
+      const position = Math.floor(Math.random() * 9); // 3x3 그리드
+      const id = Date.now() + Math.random();
+
+      setMoles(prev => [...prev, { id, color, position, active: true }]);
+
+      // 1.5초 후 자동으로 사라짐
+      setTimeout(() => {
+        setMoles(prev => prev.filter(m => m.id !== id));
+      }, 1500);
+    }, 800 + Math.random() * 700);
+
+    return () => clearInterval(spawnInterval);
+  }, [isActive, timeLeft]);
+
+  // 타이머
+  useEffect(() => {
+    if (phase !== 'playing' || !isActive || timeLeft <= 0) return;
+    
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          setIsActive(false);
+          setPhase('complete');
+          const accuracy = score.total > 0 ? (score.correct / score.total) * 100 : 0;
+          setTimeout(() => onComplete(accuracy, score.correct, score.wrong), 1000);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [phase, isActive, timeLeft, score, onComplete]);
+
+  const handleMoleClick = (mole: { id: number; color: 'red' | 'blue'; position: number }) => {
+    if (phase !== 'playing' || !isActive) return;
+
+    const isCorrect = mole.color === 'red'; // 빨간색만 눌러야 함
+    setShowFeedback({ type: isCorrect ? 'correct' : 'wrong', position: mole.position });
+    setTimeout(() => setShowFeedback(null), 500);
+
+    if (isCorrect) {
+      setScore(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
+      setMoles(prev => prev.filter(m => m.id !== mole.id));
+    } else {
+      setScore(prev => ({ ...prev, wrong: prev.wrong + 1, total: prev.total + 1 }));
+      setMoles(prev => prev.filter(m => m.id !== mole.id));
+    }
+  };
+
+  // 설명 화면
+  if (phase === 'instruction') {
+    return (
+      <div className="space-y-2 text-center">
+        <div className="text-lg font-bold text-gray-800 mb-2">
+          게임 방법을 확인하세요!
+        </div>
+        
+        <div className="grid grid-cols-2 gap-2">
+          {/* 빨간색 곰돌이 설명 */}
+          <div className="bg-red-50 border-2 border-red-300 rounded-xl p-2">
+            <div className="h-16 bg-red-500 rounded-lg flex items-center justify-center mb-1">
+              <span className="text-4xl">🐻</span>
+            </div>
+            <div className="text-sm font-bold text-red-700">
+              <span className="text-red-600">빨간색 곰돌이</span>
+            </div>
+            <div className="text-lg font-bold text-red-600 mt-1">
+              ✅ 누르세요!
+            </div>
+          </div>
+
+          {/* 파란색 곰돌이 설명 */}
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-2">
+            <div className="h-16 bg-blue-500 rounded-lg flex items-center justify-center mb-1">
+              <span className="text-4xl">🐻</span>
+            </div>
+            <div className="text-sm font-bold text-blue-700">
+              <span className="text-blue-600">파란색 곰돌이</span>
+            </div>
+            <div className="text-lg font-bold text-blue-600 mt-1">
+              ❌ 누르지 마세요!
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={handleStartGame}
+          className="w-full h-12 bg-[#2E7D32] text-white text-base font-bold rounded-xl active:bg-[#1B5E20] transition-colors shadow-lg touch-manipulation mt-2"
+        >
+          게임 시작하기
+        </button>
+      </div>
+    );
+  }
+
+  // 게임 화면
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-between items-center px-2">
+        <div className="text-lg font-bold text-gray-700">
+          정답: {score.correct} | 오답: {score.wrong}
+        </div>
+        <div className={`text-lg font-bold ${timeLeft <= 5 ? 'text-red-600 animate-pulse' : 'text-gray-700'}`}>
+          ⏱ {timeLeft}초
+        </div>
+      </div>
+      <div className="text-center text-sm text-gray-600 mb-2">
+        <span className="text-red-600 font-bold">빨간색 곰돌이</span>가 나오면 누르고, <span className="text-blue-600 font-bold">파란색 곰돌이</span>가 나오면 누르지 마세요!
+      </div>
+      <div className="grid grid-cols-3 gap-2 max-w-[300px] mx-auto relative">
+        {Array.from({ length: 9 }).map((_, idx) => {
+          const mole = moles.find(m => m.position === idx && m.active);
+          const feedback = showFeedback?.position === idx ? showFeedback.type : null;
+          
+          return (
+            <div
+              key={idx}
+              className="h-24 bg-gray-200 rounded-xl relative overflow-hidden"
+            >
+              {mole && (
+                <button
+                  onClick={() => handleMoleClick(mole)}
+                  className={`w-full h-full text-5xl flex items-center justify-center animate-bounce touch-manipulation ${
+                    mole.color === 'red' ? 'bg-red-500' : 'bg-blue-500'
+                  }`}
+                >
+                  🐻
+                </button>
+              )}
+              {feedback && (
+                <div className={`absolute inset-0 flex items-center justify-center text-4xl font-bold ${
+                  feedback === 'correct' ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {feedback === 'correct' ? '✓' : '✗'}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-center text-xs text-gray-500">
+        정확도: {score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0}%
+      </div>
+    </div>
+  );
+}
+
 // 애니메이션 숫자 컴포넌트 (간병비 표시용)
 function AnimatedNumber({ value }: { value: number }) {
   const [displayValue, setDisplayValue] = useState(0);
@@ -230,6 +694,15 @@ export default function Home() {
   useEffect(() => {
     if (gameState.currentStep >= 0 && gameState.currentStep < TOTAL_QUESTIONS) {
       const question = QUIZ_QUESTIONS[gameState.currentStep];
+      
+      // 가족부양질문과 두더지 잡기 게임은 위쪽 타이머 사용 안 함
+      // - 가족부양질문: 제한시간 없음, 클릭해야만 넘어감
+      // - 두더지 잡기: 게임 내부 타이머 사용 (게임 시작 후부터 시작)
+      if (question.type === 'family-care' || question.type === 'whack-a-mole') {
+        setGameState((prev) => ({ ...prev, timeRemaining: undefined }));
+        return;
+      }
+      
       if (question.timeLimit) {
         setGameState((prev) => ({ ...prev, timeRemaining: question.timeLimit }));
         
@@ -266,22 +739,63 @@ export default function Home() {
 
 
   const handleNextStep = () => {
-    if (gameState.currentStep < TOTAL_QUESTIONS) {
-      // 첫 번째 문제 이후부터 결과 화면 전까지 휴식 메시지 표시
-      if (gameState.currentStep > 0 && gameState.currentStep < TOTAL_QUESTIONS - 1) {
-        setGameState((prev) => ({ ...prev, showingBreak: true }));
-        // 2초 후 다음 문제로
-        setTimeout(() => {
-          setGameState((prev) => ({ 
-            ...prev, 
-            currentStep: (prev.currentStep + 1) as Step,
-            showingBreak: false 
-          }));
-        }, 2000);
-      } else {
-        setGameState((prev) => ({ ...prev, currentStep: (prev.currentStep + 1) as Step }));
+    setGameState((prev) => {
+      // 인트로 화면(currentStep = -1)에서 시작하기 버튼을 누르면 첫 번째 문제(Q1)로 이동
+      if (prev.currentStep === -1) {
+        return { ...prev, currentStep: 0, showingBreak: false };
       }
-    }
+
+      // 이미 결과 화면이면 무시
+      if (prev.currentStep >= TOTAL_QUESTIONS) {
+        return prev;
+      }
+
+      // 현재 문제 확인
+      if (prev.currentStep < 0 || prev.currentStep >= TOTAL_QUESTIONS) {
+        return prev;
+      }
+      
+      const currentQuestion = QUIZ_QUESTIONS[prev.currentStep];
+      if (!currentQuestion) {
+        return prev;
+      }
+      
+      // 가족부양질문은 확인 버튼을 통해서만 넘어가야 함 (자동 진행 방지)
+      if (currentQuestion.type === 'family-care') {
+        return prev;
+      }
+      
+      const nextStep = (prev.currentStep + 1) as Step;
+      
+      // 다음 문제가 가족부양질문(Q13)인지 확인
+      const nextQuestion = QUIZ_QUESTIONS[nextStep];
+      const isNextFamilyCare = nextQuestion?.type === 'family-care';
+      
+      // 첫 번째 문제 이후부터 마지막 문제 전까지 휴식 메시지 표시
+      // 단, 다음 문제가 가족부양질문이면 휴식 없이 바로 표시
+      if (prev.currentStep > 0 && prev.currentStep < TOTAL_QUESTIONS - 1 && !prev.showingBreak && !isNextFamilyCare) {
+        // 휴식 메시지 표시 후 2초 후 다음 문제로
+        const capturedNextStep = nextStep;
+        setTimeout(() => {
+          setGameState((p) => {
+            // 휴식 중이고 currentStep이 변경되지 않았으면 다음 문제로 이동
+            if (p.showingBreak && p.currentStep === prev.currentStep) {
+              return { 
+                ...p, 
+                showingBreak: false, 
+                currentStep: capturedNextStep 
+              };
+            }
+            return p;
+          });
+        }, 2000);
+        
+        return { ...prev, showingBreak: true };
+      }
+      
+      // 첫 번째 문제(Q1) 완료 후 바로 Q2로, 또는 가족부양질문 바로 전
+      return { ...prev, currentStep: nextStep, showingBreak: false };
+    });
   };
 
   const handleAnswer = (questionId: number, answer: string | string[] | number[]) => {
@@ -291,6 +805,8 @@ export default function Home() {
     }));
 
     const question = QUIZ_QUESTIONS[questionId - 1];
+    if (!question) return;
+    
     if (question.type === 'memory-input') {
       setGameState((prev) => ({
         ...prev,
@@ -298,7 +814,9 @@ export default function Home() {
       }));
     }
 
-    // 단일 선택 문제는 자동으로 다음 단계로
+    // ★ 수정: 게임 타입들은 handleAnswer에서 자동 넘김을 하지 않음
+    // 게임 타입들은 컴포넌트의 onComplete에서 handleNextStep을 호출함
+    // 자동 넘김이 필요한 타입들만 여기서 처리
     if (
       question.type === 'choice' ||
       question.type === 'stroop' ||
@@ -312,15 +830,8 @@ export default function Home() {
       }, 800);
     }
     
-    // 순발력 테스트는 컴포넌트 내부에서 처리
-    if (question.type === 'reaction-speed') {
-      // onComplete에서 처리됨
-    }
-    
-    // 가족 부양 질문은 컴포넌트 내부에서 처리 (1.5초 후 자동 진행)
-    if (question.type === 'family-care') {
-      // 컴포넌트 내부에서 처리됨
-    }
+    // 게임 타입들과 가족부양질문은 컴포넌트 내부에서 처리 (onComplete에서 handleNextStep 호출)
+    // handleAnswer에서는 답변만 저장하고 자동 진행하지 않음
   };
 
   const handleMultipleSelect = (questionId: number, option: string) => {
@@ -389,7 +900,12 @@ export default function Home() {
           }
         }
       } else {
-        isCorrect = answer === q.correctAnswer;
+        // 게임 타입들은 'completed'를 정답으로 처리
+        if (q.type === 'card-match' || q.type === 'schulte-table' || q.type === 'whack-a-mole' || q.type === 'reaction-speed') {
+          isCorrect = answer === 'completed';
+        } else {
+          isCorrect = answer === q.correctAnswer;
+        }
       }
 
       if (isCorrect) {
@@ -417,6 +933,10 @@ export default function Home() {
           return correctAnswers.length === userAnswers.length && correctAnswers.every((a) => userAnswers.includes(a));
         }
         return false;
+      }
+      // 게임 타입들은 'completed'를 정답으로 처리
+      if (q.type === 'card-match' || q.type === 'schulte-table' || q.type === 'whack-a-mole' || q.type === 'reaction-speed') {
+        return ans === 'completed';
       }
       return ans === q.correctAnswer;
     }).length;
@@ -639,8 +1159,8 @@ export default function Home() {
       const estimatedMonthlyCost = percentage < 80 ? Math.round((80 - percentage) * 4.375) : 0; // 최대 350만원
       const estimatedYearlyCost = estimatedMonthlyCost * 12;
       
-      // 가족 부양 질문 답변 가져오기
-      const familyCareAnswer = gameState.answers[10] as string;
+      // 가족 부양 질문 답변 가져오기 (id 13)
+      const familyCareAnswer = gameState.answers[13] as string;
       
       // 황금 뇌 인증서 (90점 이상)
       const isGoldBrain = percentage >= 90;
@@ -787,8 +1307,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* 예상 간병비 시뮬레이터 (점수 80점 미만일 때) */}
-            {estimatedMonthlyCost > 0 && (
+            {/* 예상 간병비 시뮬레이터 (항상 표시) */}
+            {estimatedMonthlyCost > 0 ? (
               <div className="mb-3 p-3 bg-red-50 border-2 border-red-300 rounded-xl">
                 <p className="text-base font-bold text-center text-red-800 mb-2">
                   💰 예상 간병비 계산
@@ -824,6 +1344,29 @@ export default function Home() {
                     두 분 모두를 돌볼 사람이 필요합니다.
                   </p>
                 )}
+              </div>
+            ) : (
+              <div className="mb-3 p-3 bg-green-50 border-2 border-green-300 rounded-xl">
+                <p className="text-base font-bold text-center text-green-800 mb-2">
+                  💰 예상 간병비 계산
+                </p>
+                <div className="bg-white p-3 rounded-xl mb-2">
+                  <p className="text-sm text-gray-700 mb-2">
+                    현재 뇌 건강 상태로 볼 때, 10년 뒤 예상 치매 간병비는?
+                  </p>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600 mb-1">
+                      월 0만 원
+                    </div>
+                    <div className="text-lg text-gray-600">
+                      연간 약 0만 원
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-green-800 text-center leading-relaxed">
+                  ✅ 현재 뇌 건강 상태가 양호하여 예상 간병비가 0원입니다!<br />
+                  건강한 뇌를 유지하기 위해 꾸준한 관리가 필요합니다.
+                </p>
               </div>
             )}
 
@@ -900,7 +1443,16 @@ export default function Home() {
     }
 
     // 문제 화면
+    // currentStep이 유효한 범위인지 확인
+    if (gameState.currentStep < 0 || gameState.currentStep >= TOTAL_QUESTIONS) {
+      return null;
+    }
+    
     const question = QUIZ_QUESTIONS[gameState.currentStep];
+    if (!question) {
+      return null;
+    }
+    
     const currentAnswer = gameState.answers[question.id];
     
     // 나이에 따른 난이도 조절 (70세 이상은 힌트 제공)
@@ -913,7 +1465,11 @@ export default function Home() {
           <div className="text-lg sm:text-2xl text-gray-600">
             {gameState.currentStep + 1} / {TOTAL_QUESTIONS}
           </div>
-          {question.timeLimit && gameState.timeRemaining !== undefined && (
+          {/* 타이머 표시 (가족부양질문과 두더지 잡기는 제외) */}
+          {question.timeLimit && 
+           gameState.timeRemaining !== undefined && 
+           question.type !== 'family-care' && 
+           question.type !== 'whack-a-mole' && (
             <div 
               className={`text-2xl sm:text-4xl font-bold transition-all duration-300 ${
                 gameState.timeRemaining <= 5 
@@ -933,7 +1489,13 @@ export default function Home() {
         <div className="text-4xl sm:text-6xl mb-2 sm:mb-4 flex-shrink-0">🐻</div>
         <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-lg w-full flex-shrink-0">
           <p className="text-xl leading-relaxed text-center text-gray-800 mb-4">
-            {question.questionText}
+            {question.type === 'whack-a-mole' ? (
+              <>
+                <span className="text-red-600 font-bold">빨간색 곰돌이</span>가 나오면 누르고, <span className="text-blue-600 font-bold">파란색 곰돌이</span>가 나오면 누르지 마세요!
+              </>
+            ) : (
+              question.questionText
+            )}
           </p>
 
           {/* 기억 입력 (Q1) - 어르신을 위해 크게 */}
@@ -1294,19 +1856,57 @@ export default function Home() {
             </div>
           )}
 
-          {/* 순발력 테스트 (Q9) - 반응 속도 측정 */}
+          {/* 순발력 테스트 (Q11) - 반응 속도 측정 */}
           {question.type === 'reaction-speed' && (
             <ReactionSpeedTest
               onComplete={(reactionTime: number) => {
                 setGameState((prev) => ({ ...prev, reactionTime }));
                 handleAnswer(question.id, 'completed');
-                // 바로 다음 단계로
-                handleNextStep();
+                // handleAnswer에서 자동 진행하지 않으므로 여기서만 handleNextStep 호출
+                setTimeout(() => handleNextStep(), 1500);
               }}
             />
           )}
 
-          {/* 가족 부양 질문 (Q10) - 현실 자각 설문 */}
+          {/* 카드 짝 맞추기 게임 (Q2) */}
+          {question.type === 'card-match' && (
+            <CardMatchGame
+              onComplete={(isSuccess: boolean, attempts: number) => {
+                handleAnswer(question.id, isSuccess ? 'completed' : 'failed');
+                // handleAnswer에서 자동 진행하지 않으므로 여기서만 handleNextStep 호출
+                setTimeout(() => handleNextStep(), 1500);
+              }}
+              timeLimit={question.timeLimit || 30}
+            />
+          )}
+
+          {/* 슐테 테이블 게임 (Q5) */}
+          {question.type === 'schulte-table' && (
+            <SchulteTableGame
+              onComplete={(time: number, isSuccess: boolean) => {
+                handleAnswer(question.id, isSuccess ? 'completed' : 'failed');
+                // handleAnswer에서 자동 진행하지 않으므로 여기서만 handleNextStep 호출
+                setTimeout(() => handleNextStep(), 1500);
+              }}
+              timeLimit={question.timeLimit || 60}
+            />
+          )}
+
+          {/* 두더지 잡기 게임 (Q12) - Go/No-Go 테스트 */}
+          {question.type === 'whack-a-mole' && (
+            <WhackAMoleGame
+              onComplete={(accuracy: number, correctHits: number, wrongHits: number) => {
+                // 정확도 70% 이상이면 성공
+                const isSuccess = accuracy >= 70;
+                handleAnswer(question.id, isSuccess ? 'completed' : 'failed');
+                // handleAnswer에서 자동 진행하지 않으므로 여기서만 handleNextStep 호출
+                setTimeout(() => handleNextStep(), 2000);
+              }}
+              timeLimit={question.timeLimit || 20}
+            />
+          )}
+
+          {/* 가족 부양 질문 (Q13) - 현실 자각 설문 */}
           {question.type === 'family-care' && (
             <div className="space-y-4">
               <div className="bg-orange-50 border-2 border-orange-300 p-4 rounded-xl mb-4">
@@ -1335,10 +1935,6 @@ export default function Home() {
                       <button
                         onClick={() => {
                           handleAnswer(question.id, option);
-                          // 1.5초 후 자동으로 다음 단계로
-                          setTimeout(() => {
-                            handleNextStep();
-                          }, 1500);
                         }}
                         className={`w-full h-14 text-base font-bold rounded-xl transition-all touch-manipulation border-2 ${
                           selected
@@ -1357,6 +1953,19 @@ export default function Home() {
                   );
                 })}
               </div>
+              
+              {/* 확인 버튼 - 선택 후에만 표시 */}
+              {currentAnswer && (
+                <button
+                  onClick={() => {
+                    // 가족부양질문은 확인 버튼을 눌러야만 결과 화면으로 이동
+                    setGameState((prev) => ({ ...prev, currentStep: TOTAL_QUESTIONS as Step }));
+                  }}
+                  className="w-full h-14 bg-[#2E7D32] text-white text-base font-bold rounded-xl active:bg-[#1B5E20] transition-colors shadow-lg touch-manipulation mt-4"
+                >
+                  확인하고 결과 보기
+                </button>
+              )}
             </div>
           )}
 
