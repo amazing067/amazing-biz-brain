@@ -407,7 +407,6 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
       <div className="grid grid-cols-4 gap-1.5 max-w-[280px] mx-auto bg-gray-200 p-2 rounded-xl">
         {numbers.map((num, index) => {
           const isFound = num < currentNum;
-          const isCurrent = num === currentNum;
           return (
             <button
               key={`${num}-${index}`}
@@ -416,8 +415,6 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
               className={`h-16 text-xl font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center justify-center touch-manipulation ${
                 isFound 
                   ? 'invisible' // 이미 찾은 숫자는 숨김
-                  : isCurrent
-                  ? 'bg-green-100 text-green-800 ring-2 ring-green-400' // 현재 찾아야 할 숫자 강조
                   : 'bg-white text-gray-800 hover:bg-gray-50' // 힌트 제거 (난이도 상승)
               }`}
             >
