@@ -847,159 +847,169 @@ export default function Home() {
     }));
   };
 
-  // 점수 계산 (차등 점수 시스템 적용)
+  // [최종 수정] 사용자 요청 맞춤형 정밀 채점 로직
   const calculateScores = () => {
+    // 1. 점수통 초기화
     const categoryScores: Record<CategoryName, number> = {
-      기억력: 0,
-      지남력: 0,
-      계산력: 0,
-      시공간: 0,
-      집행기능: 0,
-      판단력: 0,
-      작업기억: 0,
-      억제능력: 0,
-      주의력: 0,
+      기억력: 0, 지남력: 0, 계산력: 0, 시공간: 0, 집행기능: 0, 
+      판단력: 0, 작업기억: 0, 억제능력: 0, 주의력: 0
     };
 
     const categoryMaxScores: Record<CategoryName, number> = {
-      기억력: 0,
-      지남력: 0,
-      계산력: 0,
-      시공간: 0,
-      집행기능: 0,
-      판단력: 0,
-      작업기억: 0,
-      억제능력: 0,
-      주의력: 0,
+      기억력: 0, 지남력: 0, 계산력: 0, 시공간: 0, 집행기능: 0, 
+      판단력: 0, 작업기억: 0, 억제능력: 0, 주의력: 0
     };
 
     let correctCount = 0;
 
-    // 2. 모든 문제 채점 루프
+    // 2. 채점 루프 시작
     QUIZ_QUESTIONS.forEach((q) => {
       const ans = gameState.answers[q.id];
       const maxPoints = q.score;
       let earnedPoints = 0;
 
-      // 해당 문제의 카테고리 만점(분모) 증가
+      // 만점(분모) 누적
       categoryMaxScores[q.category] += maxPoints;
 
-      // 답이 없으면 0점 처리하고 다음으로
       if (!ans) return;
 
-      // --- [게임 1] 반응 속도 (0.1초 단위 평가) ---
+      // -----------------------------------------------------------
+      // ⚡ [게임 1] 반응 속도: 기준 완화 (0.4초 만점 / 0.05초당 감점)
+      // -----------------------------------------------------------
       if (q.type === 'reaction-speed') {
-        const time = gameState.reactionTime || 9999;
         if (ans === 'completed') {
-          if (time <= 300) earnedPoints = maxPoints;        // 0.3초 이하 (만점)
-          else if (time <= 450) earnedPoints = Math.round(maxPoints * 0.8); // 0.45초 (우수)
-          else if (time <= 600) earnedPoints = Math.round(maxPoints * 0.5); // 0.6초 (보통)
-          else earnedPoints = 0;                            // 느림 (0점)
+          const time = gameState.reactionTime || 9999;
           
+          // 기존 300ms -> 400ms로 완화 (어르신 고려)
+          const baseTime = 400; 
+          // 0.05초(50ms) 늦을 때마다 -1점
+          const penaltyStep = 50; 
+          
+          if (time <= baseTime) {
+            earnedPoints = maxPoints;
+          } else {
+            const delay = time - baseTime;
+            const penalty = Math.ceil(delay / penaltyStep);
+            earnedPoints = Math.max(0, maxPoints - penalty);
+          }
           if (earnedPoints > 0) correctCount++;
         }
       }
       
-      // --- [게임 2] 슐테 테이블 (시간 등급제) ---
+      // -----------------------------------------------------------
+      // 🔢 [게임 2] 슐테 테이블: 18초 기준 / 1초당 -1점 (요청 반영)
+      // -----------------------------------------------------------
       else if (q.type === 'schulte-table') {
         if (ans === 'completed') {
           const time = gameState.schulteTime || 999;
-          if (time <= 25) earnedPoints = maxPoints;         // 25초 컷 (만점)
-          else if (time <= 35) earnedPoints = Math.round(maxPoints * 0.7); // 35초 (양호)
-          else if (time <= 50) earnedPoints = Math.round(maxPoints * 0.4); // 50초 (주의)
-          else earnedPoints = 0;                            // 실패 수준
+          const baseTime = 18; // 18초 이내 만점
           
+          if (time <= baseTime) {
+            earnedPoints = maxPoints;
+          } else {
+            // 1초 늦을 때마다 -1점 (소수점 올림 처리)
+            const delay = time - baseTime;
+            const penalty = Math.ceil(delay); // 1.1초 늦으면 2점 감점
+            earnedPoints = Math.max(0, maxPoints - penalty);
+          }
           if (earnedPoints > 0) correctCount++;
+        } else {
+            // 시간 내 못 찾았거나 실패 시 0점
+            earnedPoints = 0;
         }
       }
 
-      // --- [게임 3] 카드 짝 맞추기 (시도 횟수 감점) ---
+      // -----------------------------------------------------------
+      // 🃏 [게임 3] 카드 짝 맞추기: 5회 만점 / 1회당 -1점 (요청 반영)
+      // -----------------------------------------------------------
       else if (q.type === 'card-match') {
+        // 시간 내 완료('completed') 못하면 무조건 0점
         if (ans === 'completed') {
-          const attempts = gameState.cardAttempts || 999;
-          // 5쌍(10장)을 맞추는데 최소 5회(이상적), 최대 10회(완벽)
-          if (attempts <= 10) earnedPoints = maxPoints; // 10회 이하: 만점 (기억력 우수)
-          else if (attempts <= 14) earnedPoints = Math.round(maxPoints * 0.7); // 14회 이하: 70%
-          else if (attempts <= 18) earnedPoints = Math.round(maxPoints * 0.4); // 18회 이하: 40%
-          else earnedPoints = Math.round(maxPoints * 0.2); // 18회 초과: 20%
+          const attempts = gameState.cardAttempts || 20;
+          const baseAttempts = 5; // 5회(최소) 만점
           
+          if (attempts <= baseAttempts) {
+            earnedPoints = maxPoints;
+          } else {
+            // 6회부터 -1점씩 차감
+            // (6회: -1, 7회: -2, 8회: -3 ...)
+            const extraMoves = attempts - baseAttempts;
+            earnedPoints = Math.max(0, maxPoints - extraMoves); 
+          }
           if (earnedPoints > 0) correctCount++;
+        } else {
+            earnedPoints = 0; // 시간 초과
         }
       }
 
-      // --- [게임 4] 두더지 잡기 (정확도 기반) ---
+      // -----------------------------------------------------------
+      // 🐻 [게임 4] 두더지 잡기: 정확도 % 그대로 점수 반영
+      // -----------------------------------------------------------
       else if (q.type === 'whack-a-mole') {
         if (ans === 'completed') {
-          const accuracy = gameState.whackAccuracy || 0;
-          if (accuracy >= 90) earnedPoints = maxPoints;         // 90% 이상 (만점)
-          else if (accuracy >= 80) earnedPoints = Math.round(maxPoints * 0.8); // 80% 이상 (우수)
-          else if (accuracy >= 75) earnedPoints = Math.round(maxPoints * 0.6); // 75% 이상 (양호)
-          else if (accuracy >= 60) earnedPoints = Math.round(maxPoints * 0.4); // 60% 이상 (주의)
-          else earnedPoints = 0;                            // 60% 미만 (0점)
-          
+          const accuracy = gameState.whackAccuracy || 0; // 0~100
+          earnedPoints = Math.round(maxPoints * (accuracy / 100));
           if (earnedPoints > 0) correctCount++;
         }
       }
 
-      // --- [문제] 지연 회상 (부분 점수) ---
+      // -----------------------------------------------------------
+      // 🔄 [문제] 숫자 거꾸로: 맞춘 숫자 개수만큼 부분 점수
+      // -----------------------------------------------------------
+      else if (q.type === 'reverse-number-input') {
+        if (Array.isArray(ans) && Array.isArray(q.correctAnswer)) {
+          const sequence = gameState.reverseNumberSequence || [9, 4, 8, 3, 7];
+          const correctSeq = [...sequence].reverse();
+          
+          let matchCount = 0;
+          correctSeq.forEach((val, idx) => {
+            if (val === (ans as number[])[idx]) matchCount++;
+          });
+
+          earnedPoints = Math.round(maxPoints * (matchCount / correctSeq.length));
+          if (earnedPoints === maxPoints) correctCount++;
+        }
+      }
+
+      // -----------------------------------------------------------
+      // 🖼️ [문제] 지연 회상: 1개당 33% 점수 (부분 점수)
+      // -----------------------------------------------------------
       else if (q.type === 'multi-choice') {
-        // 정답 배열과 사용자 응답 배열 비교
         if (Array.isArray(ans) && Array.isArray(q.correctAnswer)) {
           const correctList = q.correctAnswer as string[];
           const userList = ans as string[];
           const matchCount = correctList.filter(item => userList.includes(item)).length;
 
-          if (matchCount === 3) {
-            earnedPoints = maxPoints; // 3개 다 맞춤
-            correctCount++;
-          } else if (matchCount === 2) {
-            earnedPoints = Math.round(maxPoints * 0.5); // 2개 맞춤
-          } else {
-            earnedPoints = 0; // 1개 이하는 0점
-          }
+          earnedPoints = Math.round(maxPoints * (matchCount / 3));
+          if (matchCount === 3) correctCount++;
         }
       }
 
-      // --- [문제] 숫자 거꾸로 (엄격 채점) ---
-      else if (q.type === 'reverse-number-input') {
-        // 배열 내용이 완벽히 같아야 함
-        if (Array.isArray(ans) && ans.length === 5) {
-          const sequence = gameState.reverseNumberSequence || [9, 4, 8, 3, 7];
-          const correctAnswer = [...sequence].reverse();
-          const isPerfect = correctAnswer.every((val, idx) => val === (ans as number[])[idx]);
-          if (isPerfect) {
-            earnedPoints = maxPoints;
-            correctCount++;
-          } else {
-            earnedPoints = 0;
-          }
-        }
-      }
-
-      // --- [설문] 가족 부양 (점수 없음) ---
-      else if (q.type === 'family-care') {
-        earnedPoints = 0; // 점수에 영향 안 줌
-      }
-
-      // --- [일반 객관식] ---
-      else {
+      // -----------------------------------------------------------
+      // 📝 [기타] 일반 객관식 (모 아니면 도)
+      // -----------------------------------------------------------
+      else if (q.type !== 'family-care') { 
+        // 배열 타입 정답 처리
         if (Array.isArray(q.correctAnswer)) {
           if (Array.isArray(ans)) {
-            const correctAnswers = q.correctAnswer as string[];
-            const userAnswers = ans as string[];
+            const correctAnswers = q.correctAnswer as string[] | number[];
+            const userAnswers = ans as string[] | number[];
             const isCorrect = correctAnswers.length === userAnswers.length &&
-              correctAnswers.every((a) => userAnswers.includes(a));
+              correctAnswers.every((a, idx) => a === userAnswers[idx]);
             if (isCorrect) {
               earnedPoints = maxPoints;
               correctCount++;
             } else {
               earnedPoints = 0;
             }
+          } else {
+            earnedPoints = 0;
           }
         } else {
-          // 문자열 비교 시 타입 변환하여 정확히 비교
+          // 문자열 비교
           const answerStr = String(ans).trim();
           const correctStr = String(q.correctAnswer).trim();
+          
           if (answerStr === correctStr) {
             earnedPoints = maxPoints;
             correctCount++;
@@ -1009,11 +1019,11 @@ export default function Home() {
         }
       }
 
-      // 3. 획득 점수를 해당 카테고리에 누적
+      // 3. 점수 반영
       categoryScores[q.category] += earnedPoints;
     });
 
-    // 4. 총점 계산
+    // 4. 총점 합산
     const totalScore = Object.values(categoryScores).reduce((a, b) => a + b, 0);
     const maxScore = Object.values(categoryMaxScores).reduce((a, b) => a + b, 0);
 
@@ -1508,102 +1518,16 @@ export default function Home() {
             </div>
           )}
 
-          {/* 영역별 점수 표시 (간소화) */}
-          <div className="w-full bg-white p-4 rounded-xl shadow-lg">
-            <p className="text-lg font-bold text-gray-800 text-center mb-3">영역별 점수</p>
-            <div className="space-y-2">
-              {CATEGORIES.map((category) => {
-                const score = categoryScores[category];
-                const max = categoryMaxScores[category];
-                if (max === 0) return null;
-                const percent = Math.round((score / max) * 100);
-                const feedback = getCategoryFeedback(category, percent, score, max);
-                
-                return (
-                  <div key={category} className="mb-2">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm text-gray-700">{category}</span>
-                      <span className={`text-sm font-bold ${percent >= 80 ? 'text-green-600' : 'text-red-600'}`}>
-                        {score}/{max} ({percent}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all ${
-                          percent >= 80 ? 'bg-green-500' : percent >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${percent}%` }}
-                      ></div>
-                    </div>
-                    {feedback && (
-                      <div className="mt-1 p-2 bg-red-50 border-l-4 border-red-500 rounded-r">
-                        <p className="text-xs text-red-800 leading-relaxed mb-1">{feedback.message}</p>
-                        {feedback.solution && (
-                          <div className="mt-2 p-2 bg-white rounded border border-red-200">
-                            <p className="text-xs text-gray-700 leading-relaxed font-semibold">{feedback.solution}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 가족 부양 부담 분석 */}
-          {familyCareAnswer && (
-            <div className="w-full p-4 bg-orange-50 border-2 border-orange-300 rounded-xl">
-              <p className="text-lg font-bold text-center text-orange-800 mb-3">
-                💭 가족 부양 부담 분석
-              </p>
-              <div className="bg-white p-4 rounded-xl">
-                {familyCareAnswer === '배우자' && (
-                  <p className="text-base text-orange-800 text-center leading-relaxed">
-                    배우자님께 의존하시는군요.<br />
-                    하지만 배우자님도 연로하시면<br />
-                    <span className="font-bold">서로 돌보기 어려운 상황</span>이<br />
-                    올 수 있습니다.
-                  </p>
-                )}
-                {familyCareAnswer === '자녀' && (
-                  <p className="text-base text-orange-800 text-center leading-relaxed">
-                    자녀분께 의존하시는군요.<br />
-                    하지만 자녀분의<br />
-                    <span className="font-bold">경제활동이 중단</span>되면<br />
-                    가족 전체가<br />
-                    어려워질 수 있습니다.
-                  </p>
-                )}
-                {familyCareAnswer === '간병인/요양병원' && (
-                  <p className="text-base text-orange-800 text-center leading-relaxed">
-                    간병인이나 요양병원을<br />
-                    고려하시는군요.<br />
-                    <span className="font-bold">매달 400만 원 이상</span>의<br />
-                    비용이 필요합니다.
-                  </p>
-                )}
-                {familyCareAnswer === '잘 모르겠다' && (
-                  <p className="text-base text-orange-800 text-center leading-relaxed">
-                    아직 준비가<br />
-                    되어 있지 않으시군요.<br />
-                    <span className="font-bold">지금부터 준비</span>해야 합니다.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* DB 입력 폼 */}
+          {/* DB 입력 폼 (수정됨: 컴플라이언스 준수 + 전문가 컨셉) */}
           <div className="w-full bg-gradient-to-r from-[#2E7D32] to-[#1B5E20] p-5 rounded-2xl text-center shadow-xl text-white">
             <div className="mb-4">
               <p className="text-yellow-300 font-bold text-lg animate-bounce">
-                🎁 특별 혜택 대상자입니다!
+                🎁 무료 정밀 분석 대상자입니다!
               </p>
-              <p className="text-sm opacity-90 mt-1">
-                예상되는 <span className="font-bold text-yellow-300">{baseCost}만원의 비용을 0원</span>으로<br/>
-                만드는 [정부 지원금 + 시크릿 플랜]을<br/>
-                카톡으로 무료 전송해 드립니다.
+              <p className="text-sm opacity-90 mt-1 leading-relaxed">
+                예상되는 <span className="font-bold text-yellow-300">{baseCost}만원의 간병비 부담</span>을<br/>
+                줄일 수 있는 <strong>[치매 검사 결과 분석표]</strong>와<br/>
+                <strong>[맞춤형 시크릿 플랜]</strong>을 보내드립니다.
               </p>
             </div>
             
@@ -1618,18 +1542,18 @@ export default function Home() {
               <button 
                 onClick={() => {
                   if(gameState.phoneNumber.length > 9) {
-                    alert(`신청 완료!\n\n${gameState.phoneNumber} 번호로\n[치매 예방 시크릿 리포트]가 발송됩니다.`);
+                    alert(`신청 완료!\n\n입력하신 ${gameState.phoneNumber} 번호로\n[정밀 분석 리포트]가 발송됩니다.`);
                   } else {
                     alert('정확한 전화번호를 입력해주세요.');
                   }
                 }}
                 className="w-full bg-[#EF6C00] hover:bg-[#E65100] text-white py-4 rounded-xl font-bold text-xl shadow-lg transform active:scale-95 transition-all"
               >
-                무료 리포트 받기 📩
+                분석 리포트 받기 📩
               </button>
             </div>
             <p className="text-[10px] opacity-60 mt-3">
-              입력하신 정보는 결과지 발송 외의 용도로 사용되지 않습니다.
+              보내주신 정보는 결과 분석 및 상담 외의 용도로 사용되지 않습니다.
             </p>
           </div>
 

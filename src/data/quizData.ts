@@ -108,7 +108,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     type: 'reaction-speed',
     questionText: '화면이 초록색으로 변하면 즉시 터치하세요!',
     correctAnswer: 'completed', // 완료만 하면 됨
-    score: 0, // 점수는 반응 속도로 평가
+    score: 15, // 반응 속도 평가 (0.4초 이내 만점, 0.05초당 -1점)
     category: '주의력',
   },
   {
