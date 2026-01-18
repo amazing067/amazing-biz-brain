@@ -240,10 +240,13 @@ function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: bool
           setFlippedIndices([]);
           setMatches(m => {
             const newMatches = m + 1;
-            if (newMatches === 4) {
+            if (newMatches === 5) {
               setTimeout(() => {
                 setPhase('complete');
-                onComplete(true, attempts + 1);
+                setAttempts(prevAttempts => {
+                  onComplete(true, prevAttempts + 1);
+                  return prevAttempts;
+                });
               }, 500);
             }
             return newMatches;
@@ -1322,40 +1325,40 @@ export default function Home() {
       const familyCareAnswer = gameState.answers[13] as string;
 
       // ---------------------------------------------------------
-      // 💰 [핵심] 다이내믹 예상 비용 산출 알고리즘
+      // 💰 [핵심] 다이내믹 예상 비용 산출 알고리즘 (조정됨)
       // ---------------------------------------------------------
       let baseCost = 0; // 월 예상 비용 (단위: 만 원)
 
-      // (1) 점수 기반 기초 비용 (95점에서 1점 까일 때마다 3만원 추가)
+      // (1) 점수 기반 기초 비용 (95점에서 1점 까일 때마다 1.5만원 추가) - 기존 3만원에서 절반으로 조정
       if (percentage < 95) {
-          baseCost += (95 - percentage) * 3; 
+          baseCost += (95 - percentage) * 1.5; 
       }
 
-      // (2) 나이 가중치 (50세 이상부터, 1살당 2만원씩 할증)
+      // (2) 나이 가중치 (50세 이상부터, 1살당 1만원씩 할증) - 기존 2만원에서 절반으로 조정
       if (userAge >= 50) {
-          baseCost += (userAge - 50) * 2;
+          baseCost += (userAge - 50) * 1;
       }
 
-      // (3) 피지컬 페널티 (반응속도 느리면 +40만원)
+      // (3) 피지컬 페널티 (반응속도 느리면 +20만원) - 기존 40만원에서 절반으로 조정
       if (isSlowReaction) {
-          baseCost += 40;
+          baseCost += 20;
       }
 
-      // (4) 기억력 페널티 (기억력 나쁘면 +50만원)
+      // (4) 기억력 페널티 (기억력 나쁘면 +25만원) - 기존 50만원에서 절반으로 조정
       if (isMemoryFail) {
-          baseCost += 50;
+          baseCost += 25;
       }
 
-      // (5) 기회비용 (자녀 선택 시 자녀 소득 중단 고려 -> +150만원)
+      // (5) 기회비용 (자녀 선택 시 자녀 소득 중단 고려 -> +80만원) - 기존 150만원에서 조정
       if (familyCareAnswer === '자녀') {
-          baseCost += 150; 
+          baseCost += 80; 
       } else if (familyCareAnswer === '간병인/요양병원') {
-          baseCost += 100; // 간병인 기본 시세 반영
+          baseCost += 50; // 간병인 기본 시세 반영 - 기존 100만원에서 절반으로 조정
       }
 
-      // (6) 최소/최대 보정 (최소 0원 ~ 최대 450만원)
+      // (6) 최소/최대 보정 (최소 0원 ~ 최대 300만원) - 기존 450만원에서 조정
       if (percentage >= 95 && !isSlowReaction && !isMemoryFail) baseCost = 0; // 완벽하면 0원
-      if (baseCost > 450) baseCost = 450; // 요양병원 Max치
+      if (baseCost > 300) baseCost = 300; // 요양병원 Max치
 
       // 연간 비용 계산
       const estimatedYearlyCost = baseCost * 12;
@@ -1435,6 +1438,7 @@ export default function Home() {
           {/* 영역별 점수 표시 (간소화) */}
           <div className="w-full bg-white p-4 rounded-xl shadow-lg">
             <p className="text-lg font-bold text-gray-800 text-center mb-3">영역별 점수</p>
+            <p className="text-xs text-gray-500 text-center mb-3">(총 만점: {maxScore}점)</p>
             <div className="space-y-2">
               {CATEGORIES.map((category) => {
                 const score = categoryScores[category];
@@ -1445,11 +1449,14 @@ export default function Home() {
                 
                 return (
                   <div key={category} className="mb-2">
-                    <div className="flex justify-between mb-1">
+                    <div className="flex justify-between items-center mb-1">
                       <span className="text-sm text-gray-700">{category}</span>
-                      <span className={`text-sm font-bold ${percent >= 80 ? 'text-green-600' : 'text-red-600'}`}>
-                        {score}/{max} ({percent}%)
-                      </span>
+                      <div className="text-right">
+                        <span className={`text-sm font-bold ${percent >= 80 ? 'text-green-600' : 'text-red-600'}`}>
+                          {score}/{max}점 ({percent}%)
+                        </span>
+                        <span className="text-xs text-gray-500 ml-2">전체 {maxScore}점 중</span>
+                      </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
