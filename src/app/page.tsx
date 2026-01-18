@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { QUIZ_QUESTIONS, QuizQuestion, CategoryName, CATEGORIES, UserProfile, getNormalRange } from '../data/quizData';
 
 type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13; // -1: 인트로, 0-12: 문제(13개), 13: 결과
@@ -182,6 +182,9 @@ function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: bool
   const [timeLeft, setTimeLeft] = useState(timeLimit);
   const [showWrong, setShowWrong] = useState(false);
   const [phase, setPhase] = useState<'memorize' | 'play' | 'complete'>('memorize');
+  
+  // 타이머 Ref (즉시 정지용)
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // 완료 상태면 더 이상 실행하지 않음
@@ -204,29 +207,24 @@ function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: bool
     return () => clearTimeout(timer);
   }, []);
 
-  // 타이머
+  // 타이머 로직 수정
   useEffect(() => {
-    // 완료 상태이거나 5쌍을 모두 맞췄으면 타이머 중지
-    if (phase !== 'play' || matches >= 5) {
-      return;
-    }
-    
-    if (timeLeft > 0) {
-      const timer = setInterval(() => {
+    if (phase === 'play') {
+      timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
-          // 완료 상태이거나 5쌍을 모두 맞췄으면 타이머 중지
-          if (prev <= 1 || matches >= 5) {
-            if (prev <= 1) {
-              onComplete(false, attempts);
-            }
+          if (prev <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            onComplete(false, attempts);
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
-      return () => clearInterval(timer);
     }
-  }, [phase, timeLeft, matches, attempts, onComplete]);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [phase, onComplete]); // attempts 의존성 제거 (불필요한 리셋 방지)
 
   const handleCardClick = (index: number) => {
     if (phase !== 'play' || flippedIndices.length >= 2 || cards[index].isFlipped || cards[index].isMatched) return;
@@ -242,33 +240,31 @@ function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: bool
       setAttempts(prev => prev + 1);
       const [first, second] = newFlipped;
       if (cards[first].icon === cards[second].icon) {
-        // 정답!
+        // [수정] 정답 시 딜레이 0.2초로 단축 (빠릿한 느낌)
         setTimeout(() => {
           setCards(prev => prev.map((c, i) => (i === first || i === second ? { ...c, isMatched: true } : c)));
           setFlippedIndices([]);
+          
           setMatches(m => {
             const newMatches = m + 1;
             if (newMatches === 5) {
-              // 5쌍을 모두 맞췄으면 즉시 타이머 중지
+              // [수정] 성공 즉시 타이머 정지 및 페이즈 변경
+              if (timerRef.current) clearInterval(timerRef.current);
               setPhase('complete');
-              setTimeout(() => {
-                setAttempts(prevAttempts => {
-                  onComplete(true, prevAttempts + 1);
-                  return prevAttempts;
-                });
-              }, 500);
+              // 결과 화면으로 넘어가는 건 1초 뒤 (성공 메시지 확인용)
+              setTimeout(() => onComplete(true, attempts + 1), 1000);
             }
             return newMatches;
           });
-        }, 500);
+        }, 200);
       } else {
-        // 땡! 다시 뒤집기
+        // [수정] 오답 시 딜레이 0.5초 (확인 필요)
         setShowWrong(true);
         setTimeout(() => {
           setCards(prev => prev.map((c, i) => (i === first || i === second ? { ...c, isFlipped: false } : c)));
           setFlippedIndices([]);
           setShowWrong(false);
-        }, 1000);
+        }, 500);
       }
     }
   };
@@ -320,7 +316,7 @@ function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: bool
         {cards.map((card, index) => (
           <button
             key={index}
-            onClick={() => handleCardClick(index)}
+            onPointerDown={() => handleCardClick(index)} // 모바일 반응성 향상
             disabled={card.isMatched}
             className={`h-20 text-4xl rounded-xl transition-all duration-300 transform shadow-lg flex items-center justify-center touch-manipulation ${
               card.isFlipped || card.isMatched
@@ -387,13 +383,14 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
       // 힌트 제거 (난이도 상승)
       
       if (num === 16) {
-        // 끝! (16까지 다 찾음)
+        // [수정] 마지막 숫자 클릭 시 UI부터 즉시 업데이트하고 완료 처리
         setIsComplete(true);
+        setCurrentNum(17); // UI 갱신용 (모두 찾음 상태)
+        // 비동기 처리 없이 바로 완료 호출하여 딜레이 최소화
         onComplete((Date.now() - startTime) / 1000, true);
       } else {
         // 다음 숫자로 이동
         setCurrentNum(n => n + 1);
-        // 힌트 기능 제거
       }
     } else {
       // 틀린 숫자 누름
@@ -405,7 +402,10 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
   return (
     <div className="space-y-3 text-center">
       <div className="text-xl font-bold text-gray-700">
-        찾아야 할 숫자: <span className="text-4xl text-[#2E7D32] inline-block font-black animate-bounce">{currentNum}</span>
+        찾을 숫자: <span className="text-5xl text-[#2E7D32] inline-block font-black animate-bounce ml-2">{currentNum > 16 ? '완료!' : currentNum}</span>
+      </div>
+      <div className={`text-lg font-bold ${timeLeft <= 10 ? 'text-red-600' : 'text-gray-500'}`}>
+        남은 시간: {timeLeft}초
       </div>
       {/* 힌트 제거 (난이도 상승) */}
       {wrongClick && (
@@ -419,12 +419,10 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
           return (
             <button
               key={`${num}-${index}`}
-              onClick={() => handleNumClick(num)}
+              onPointerDown={() => handleNumClick(num)} // onPointerDown으로 반응속도 향상
               disabled={isComplete || isFound}
-              className={`h-16 text-xl font-bold rounded-lg flex items-center justify-center touch-manipulation ${
-                isFound 
-                  ? 'invisible' // 이미 찾은 숫자는 숨김
-                  : 'bg-white text-gray-800' // 기본 스타일만 (hover, shadow 등 모든 효과 제거)
+              className={`h-16 text-2xl font-bold rounded-xl shadow-sm flex items-center justify-center transition-all active:scale-90 ${
+                num < currentNum ? 'invisible' : 'bg-white text-gray-800'
               }`}
             >
               {num}
@@ -1458,8 +1456,10 @@ export default function Home() {
 
           {/* 영역별 점수 표시 (간소화) */}
           <div className="w-full bg-white p-4 rounded-xl shadow-lg">
-            <p className="text-lg font-bold text-gray-800 text-center mb-3">영역별 점수</p>
-            <p className="text-xs text-gray-500 text-center mb-3">(총 만점: {maxScore}점)</p>
+            <div className="flex justify-between items-center border-b pb-2 mb-3">
+              <p className="text-lg font-bold text-gray-800">📊 영역별 상세 점수</p>
+              <p className="text-base font-bold text-[#2E7D32]">총점: {totalScore} / {maxScore}</p>
+            </div>
             <div className="space-y-2">
               {CATEGORIES.map((category) => {
                 const score = categoryScores[category];
