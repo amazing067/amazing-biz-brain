@@ -406,14 +406,18 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
       )}
       <div className="grid grid-cols-4 gap-1.5 max-w-[280px] mx-auto bg-gray-200 p-2 rounded-xl">
         {numbers.map((num, index) => {
+          const isFound = num < currentNum;
+          const isCurrent = num === currentNum;
           return (
             <button
               key={`${num}-${index}`}
               onClick={() => handleNumClick(num)}
-              disabled={isComplete || num < currentNum}
+              disabled={isComplete || isFound}
               className={`h-16 text-xl font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center justify-center touch-manipulation ${
-                num < currentNum 
+                isFound 
                   ? 'invisible' // 이미 찾은 숫자는 숨김
+                  : isCurrent
+                  ? 'bg-green-100 text-green-800 ring-2 ring-green-400' // 현재 찾아야 할 숫자 강조
                   : 'bg-white text-gray-800 hover:bg-gray-50' // 힌트 제거 (난이도 상승)
               }`}
             >
@@ -565,7 +569,12 @@ function WhackAMoleGame({ onComplete, timeLimit }: { onComplete: (accuracy: numb
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center px-4 font-bold text-lg text-gray-700">
-         <div>점수: {score.correct}</div>
+         <div>
+           <div>정답: {score.correct}</div>
+           {score.wrong > 0 && (
+             <div className="text-red-600 text-sm">오답: -{score.wrong}점</div>
+           )}
+         </div>
          <div className={timeLeft <= 5 ? 'text-red-500 animate-pulse' : ''}>남은 시간: {timeLeft}</div>
       </div>
       <div className="grid grid-cols-3 gap-2 max-w-[300px] mx-auto select-none">
@@ -631,6 +640,7 @@ interface GameState {
   cardAttempts?: number; // 카드 짝 맞추기 시도 횟수
   reverseNumberSequence?: number[]; // 숫자 거꾸로 문제의 랜덤 시퀀스
   whackAccuracy?: number; // 두더지 게임 정확도 (%)
+  whackWrongHits?: number; // 두더지 게임 파란색 클릭 횟수 (감점용)
 }
 
 const TOTAL_QUESTIONS = QUIZ_QUESTIONS.length;
@@ -649,6 +659,7 @@ export default function Home() {
     cardAttempts: undefined,
     reverseNumberSequence: undefined,
     whackAccuracy: undefined,
+    whackWrongHits: undefined,
   });
 
 
@@ -946,12 +957,16 @@ export default function Home() {
       }
 
       // -----------------------------------------------------------
-      // 🐻 [게임 4] 두더지 잡기: 정확도 % 그대로 점수 반영
+      // 🐻 [게임 4] 두더지 잡기: 정확도 % 그대로 점수 반영 + 파란색 클릭 시 -1점씩 감점
       // -----------------------------------------------------------
       else if (q.type === 'whack-a-mole') {
         if (ans === 'completed') {
           const accuracy = gameState.whackAccuracy || 0; // 0~100
-          earnedPoints = Math.round(maxPoints * (accuracy / 100));
+          const wrongHits = gameState.whackWrongHits || 0; // 파란색 클릭 횟수
+          // 정확도 기반 점수 계산
+          let basePoints = Math.round(maxPoints * (accuracy / 100));
+          // 파란색 클릭 시 1점씩 감점 (최소 0점)
+          earnedPoints = Math.max(0, basePoints - wrongHits);
           if (earnedPoints > 0) correctCount++;
         }
       }
@@ -1455,7 +1470,9 @@ export default function Home() {
                         <span className={`text-sm font-bold ${percent >= 80 ? 'text-green-600' : 'text-red-600'}`}>
                           {score}/{max}점 ({percent}%)
                         </span>
-                        <span className="text-xs text-gray-500 ml-2">전체 {maxScore}점 중</span>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          전체 {maxScore}점 중 {score}점
+                        </div>
                       </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -2126,8 +2143,12 @@ export default function Home() {
           {question.type === 'whack-a-mole' && (
             <WhackAMoleGame
               onComplete={(accuracy: number, correctHits: number, wrongHits: number) => {
-                // 정확도 저장
-                setGameState((prev) => ({ ...prev, whackAccuracy: accuracy }));
+                // 정확도와 파란색 클릭 횟수 저장
+                setGameState((prev) => ({ 
+                  ...prev, 
+                  whackAccuracy: accuracy,
+                  whackWrongHits: wrongHits 
+                }));
                 // 정확도 75% 이상이면 성공 (난이도 상승)
                 const isSuccess = accuracy >= 75;
                 handleAnswer(question.id, isSuccess ? 'completed' : 'failed');
