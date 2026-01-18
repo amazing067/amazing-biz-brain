@@ -173,7 +173,7 @@ function ReactionSpeedTest({ onComplete }: { onComplete: (reactionTime: number) 
   );
 }
 
-// 카드 짝 맞추기 게임 (업그레이드 버전: 4쌍, 시간제한, 시도횟수)
+// 카드 짝 맞추기 게임 (업그레이드 버전: 5쌍, 시간제한, 시도횟수)
 function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: boolean, attempts: number) => void; timeLimit: number }) {
   const [cards, setCards] = useState<{ id: number; icon: string; isFlipped: boolean; isMatched: boolean }[]>([]);
   const [flippedIndices, setFlippedIndices] = useState<number[]>([]);
@@ -187,8 +187,8 @@ function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: bool
     // 완료 상태면 더 이상 실행하지 않음
     if (phase === 'complete' || phase === 'play') return;
     
-    // 4쌍 (8장) 카드 생성
-    const icons = ['🍎', '🍌', '🍇', '🍊'];
+    // 5쌍 (10장) 카드 생성
+    const icons = ['🍎', '🍌', '🍇', '🍊', '🍉'];
     const deck = [...icons, ...icons]
       .map((icon, index) => ({ id: index, icon, isFlipped: true, isMatched: false }))
       .sort(() => Math.random() - 0.5);
@@ -206,7 +206,7 @@ function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: bool
 
   // 타이머
   useEffect(() => {
-    if (phase === 'play' && timeLeft > 0 && matches < 4) {
+    if (phase === 'play' && timeLeft > 0 && matches < 5) { // 5쌍으로 변경
       const timer = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -293,7 +293,7 @@ function CardMatchGame({ onComplete, timeLimit }: { onComplete: (isSuccess: bool
     <div className="space-y-3">
       <div className="flex justify-between items-center px-2">
         <div className="text-lg font-bold text-gray-700">
-          맞춘 짝: {matches}/4
+          맞춘 짝: {matches}/5
         </div>
         <div className={`text-lg font-bold ${timeLeft <= 10 ? 'text-red-600 animate-pulse' : 'text-gray-700'}`}>
           ⏱ {timeLeft}초
@@ -340,14 +340,10 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
   const [timeLeft, setTimeLeft] = useState(timeLimit);
   const [wrongClick, setWrongClick] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [showHint, setShowHint] = useState(false); // 5초 후 힌트
-  const [showLocation, setShowLocation] = useState(false); // 10초 후 위치 표시
-  const [hintStartTime, setHintStartTime] = useState(0); // 현재 숫자 찾기 시작 시간
 
   useEffect(() => {
     const start = Date.now();
     setStartTime(start);
-    setHintStartTime(start); // 첫 숫자 찾기 시작 시간
     
     // 타이머 (1초마다 감소)
     const timer = setInterval(() => {
@@ -369,32 +365,14 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
     return () => clearInterval(timer);
   }, [timeLimit, isComplete, onComplete]);
 
-  // 현재 숫자를 찾는 데 걸린 시간 체크 (힌트 표시)
-  useEffect(() => {
-    if (isComplete || currentNum === 1) return;
-    
-    const timer = setInterval(() => {
-      const elapsed = (Date.now() - hintStartTime) / 1000;
-      
-      if (elapsed >= 10) {
-        // 10초 후에도 못 찾으면 위치 표시
-        setShowLocation(true);
-      } else if (elapsed >= 5) {
-        // 5초 후에도 못 찾으면 힌트 표시
-        setShowHint(true);
-      }
-    }, 100);
-    
-    return () => clearInterval(timer);
-  }, [currentNum, hintStartTime, isComplete]);
+  // 힌트 기능 제거 (난이도 상승)
 
   const handleNumClick = (num: number) => {
     if (isComplete) return;
     
     if (num === currentNum) {
       // 정답을 누름
-      setShowHint(false);
-      setShowLocation(false);
+      // 힌트 제거 (난이도 상승)
       
       if (num === 16) {
         // 끝! (16까지 다 찾음)
@@ -403,7 +381,7 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
       } else {
         // 다음 숫자로 이동
         setCurrentNum(n => n + 1);
-        setHintStartTime(Date.now()); // 다음 숫자 찾기 시작 시간 초기화
+        // 힌트 기능 제거
       }
     } else {
       // 틀린 숫자 누름
@@ -417,16 +395,7 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
       <div className="text-xl font-bold text-gray-700">
         찾아야 할 숫자: <span className="text-4xl text-[#2E7D32] inline-block font-black animate-bounce">{currentNum}</span>
       </div>
-      {showHint && !showLocation && (
-        <div className="text-base font-bold text-orange-600 animate-pulse">
-          💡 힌트: {currentNum}번을 찾아보세요!
-        </div>
-      )}
-      {showLocation && (
-        <div className="text-base font-bold text-red-600 animate-bounce">
-          📍 위치를 표시합니다!
-        </div>
-      )}
+      {/* 힌트 제거 (난이도 상승) */}
       {wrongClick && (
         <div className="text-2xl font-bold text-red-600 animate-bounce">
           ❌ 틀렸어요!
@@ -434,9 +403,6 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
       )}
       <div className="grid grid-cols-4 gap-1.5 max-w-[280px] mx-auto bg-gray-200 p-2 rounded-xl">
         {numbers.map((num, index) => {
-          const isCurrentNum = num === currentNum;
-          const shouldHighlight = showLocation && isCurrentNum;
-          
           return (
             <button
               key={`${num}-${index}`}
@@ -445,11 +411,7 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
               className={`h-16 text-xl font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center justify-center touch-manipulation ${
                 num < currentNum 
                   ? 'invisible' // 이미 찾은 숫자는 숨김
-                  : shouldHighlight
-                    ? 'bg-red-500 text-white scale-125 ring-4 ring-red-300 animate-pulse' // 10초 후 위치 표시
-                    : isCurrentNum && showHint
-                      ? 'bg-orange-300 text-white scale-110 ring-2 ring-orange-500' // 5초 후 힌트
-                      : 'bg-white text-gray-800 hover:bg-gray-50' // 숫자 강조 제거
+                  : 'bg-white text-gray-800 hover:bg-gray-50' // 힌트 제거 (난이도 상승)
               }`}
             >
               {num}
@@ -464,154 +426,153 @@ function SchulteTableGame({ onComplete, timeLimit }: { onComplete: (time: number
   );
 }
 
-// 두더지 잡기 게임 (Go/No-Go 테스트)
+// ============================================================================
+// [최종 완성] 두더지 잡기 (끊김 해결 + 가끔 2마리 동시 출현)
+// ============================================================================
 function WhackAMoleGame({ onComplete, timeLimit }: { onComplete: (accuracy: number, correctHits: number, wrongHits: number) => void; timeLimit: number }) {
   const [phase, setPhase] = useState<'instruction' | 'playing' | 'complete'>('instruction');
-  const [moles, setMoles] = useState<{ id: number; color: 'red' | 'blue'; position: number; active: boolean }[]>([]);
+  const [moles, setMoles] = useState<{ id: number; color: 'red' | 'blue'; position: number }[]>([]);
   const [score, setScore] = useState({ correct: 0, wrong: 0, total: 0 });
   const [timeLeft, setTimeLeft] = useState(timeLimit);
-  const [isActive, setIsActive] = useState(false);
-  const [showFeedback, setShowFeedback] = useState<{ type: 'correct' | 'wrong'; position: number } | null>(null);
 
   // 게임 시작
-  const handleStartGame = () => {
+  const startGame = () => {
     setPhase('playing');
-    setIsActive(true);
-    // 게임 시작 시 타이머 초기화 (게임 시작 후부터 시간이 가도록)
     setTimeLeft(timeLimit);
   };
 
+  // 1. [타이머 로직]
   useEffect(() => {
-    if (phase !== 'playing' || !isActive) return;
-
-    // 0.8~1.5초마다 새로운 두더지 생성 (한 개씩만)
-    const spawnInterval = setInterval(() => {
-      if (timeLeft <= 0) return;
-      
-      // 빨간색 70%, 파란색 30% 확률로 조정 (빨간색이 더 많이 나오도록)
-      const color = Math.random() < 0.7 ? 'red' : 'blue';
-      const position = Math.floor(Math.random() * 9); // 3x3 그리드
-      const id = Date.now() + Math.random();
-
-      setMoles(prev => [...prev, { id, color, position, active: true }]);
-
-      // 1.5초 후 자동으로 사라짐
-      setTimeout(() => {
-        setMoles(prev => prev.filter(m => m.id !== id));
-      }, 1500);
-    }, 800 + Math.random() * 700);
-
-    return () => clearInterval(spawnInterval);
-  }, [isActive, timeLeft]);
-
-  // 타이머
-  useEffect(() => {
-    if (phase !== 'playing' || !isActive || timeLeft <= 0) return;
+    if (phase !== 'playing') return;
     
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          setIsActive(false);
+          clearInterval(timer);
           setPhase('complete');
-          const accuracy = score.total > 0 ? (score.correct / score.total) * 100 : 0;
-          setTimeout(() => onComplete(accuracy, score.correct, score.wrong), 1000);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+
     return () => clearInterval(timer);
-  }, [phase, isActive, timeLeft, score, onComplete]);
+  }, [phase]);
 
-  const handleMoleClick = (mole: { id: number; color: 'red' | 'blue'; position: number }) => {
-    if (phase !== 'playing' || !isActive) return;
+  // 2. [두더지 생성 로직] - 멀티 스폰 기능 추가!
+  useEffect(() => {
+    if (phase !== 'playing') return;
 
-    const isCorrect = mole.color === 'red'; // 빨간색만 눌러야 함
-    setShowFeedback({ type: isCorrect ? 'correct' : 'wrong', position: mole.position });
-    setTimeout(() => setShowFeedback(null), 500);
+    // 0.7 ~ 1.1초마다 생성
+    const spawnRate = 700 + Math.random() * 400; 
 
-    if (isCorrect) {
-      setScore(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
-      setMoles(prev => prev.filter(m => m.id !== mole.id));
-    } else {
-      setScore(prev => ({ ...prev, wrong: prev.wrong + 1, total: prev.total + 1 }));
-      setMoles(prev => prev.filter(m => m.id !== mole.id));
+    const spawner = setInterval(() => {
+      setMoles(prevMoles => {
+        // 꽉 찼으면 생성 안 함
+        if (prevMoles.length >= 9) return prevMoles;
+
+        // 현재 비어있는 자리 찾기
+        const occupiedPositions = prevMoles.map(m => m.position);
+        const availablePositions = [0, 1, 2, 3, 4, 5, 6, 7, 8].filter(
+          p => !occupiedPositions.includes(p)
+        );
+
+        if (availablePositions.length === 0) return prevMoles;
+
+        // ★ 핵심 로직: 30% 확률로 2마리, 70% 확률로 1마리 생성
+        // 단, 빈 자리가 2개 이상일 때만 2마리 생성 가능
+        const spawnCount = (Math.random() < 0.3 && availablePositions.length >= 2) ? 2 : 1;
+        
+        const newMoles: { id: number; color: 'red' | 'blue'; position: number }[] = [];
+
+        for (let i = 0; i < spawnCount; i++) {
+          // 남은 자리 중 랜덤 선택
+          const randomIndex = Math.floor(Math.random() * availablePositions.length);
+          const position = availablePositions[randomIndex];
+          
+          // 선택된 자리는 목록에서 제거 (중복 방지)
+          availablePositions.splice(randomIndex, 1);
+
+          const color: 'red' | 'blue' = Math.random() < 0.7 ? 'red' : 'blue';
+          // id에 i를 더해서 고유값 보장
+          const id = Date.now() + Math.random() + i; 
+
+          newMoles.push({ id, color, position });
+        }
+        
+        return [...prevMoles, ...newMoles];
+      });
+    }, spawnRate);
+
+    // 3. [자동 사라짐 로직] - 1.3초 뒤 사라짐
+    const cleaner = setInterval(() => {
+        const now = Date.now();
+        setMoles(prevMoles => prevMoles.filter(m => now - Math.floor(m.id) < 1300));
+    }, 100);
+
+    return () => { 
+        clearInterval(spawner); 
+        clearInterval(cleaner);
+    };
+  }, [phase]);
+
+  // 4. [게임 종료 처리]
+  useEffect(() => {
+    if (phase === 'complete') {
+        const accuracy = score.total > 0 ? (score.correct / score.total) * 100 : 0;
+        const timer = setTimeout(() => onComplete(accuracy, score.correct, score.wrong), 1500);
+        return () => clearTimeout(timer);
     }
+  }, [phase, score, onComplete]);
+
+  const handleWhack = (mole: { id: number; color: 'red' | 'blue' }) => {
+    if (phase !== 'playing') return;
+    
+    const isCorrect = mole.color === 'red';
+    setScore(prev => ({ 
+        correct: prev.correct + (isCorrect ? 1 : 0), 
+        wrong: prev.wrong + (isCorrect ? 0 : 1),
+        total: prev.total + 1 
+    }));
+
+    setMoles(prev => prev.filter(m => m.id !== mole.id));
   };
 
-  // 설명 화면
   if (phase === 'instruction') {
     return (
-      <div className="space-y-2 text-center">
-        <div className="text-lg font-bold text-gray-800 mb-2">
-          게임 방법을 확인하세요!
+      <div className="text-center space-y-4">
+        <div className="p-4 border-2 border-red-300 bg-red-50 rounded-xl">
+          <p className="text-2xl">🐻 <span className="text-red-600 font-bold">빨강</span> = 터치!</p>
         </div>
-        
-        <div className="grid grid-cols-2 gap-2">
-          {/* 빨간색 곰돌이 설명 */}
-          <div className="bg-red-50 border-2 border-red-300 rounded-xl p-2">
-            <div className="h-16 bg-red-500 rounded-lg flex items-center justify-center mb-1">
-              <span className="text-4xl">🐻</span>
-            </div>
-            <div className="text-sm font-bold text-red-700">
-              <span className="text-red-600">빨간색 곰돌이</span>
-            </div>
-            <div className="text-lg font-bold text-red-600 mt-1">
-              ✅ 누르세요!
-            </div>
-          </div>
-
-          {/* 파란색 곰돌이 설명 */}
-          <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-2">
-            <div className="h-16 bg-blue-500 rounded-lg flex items-center justify-center mb-1">
-              <span className="text-4xl">🐻</span>
-            </div>
-            <div className="text-sm font-bold text-blue-700">
-              <span className="text-blue-600">파란색 곰돌이</span>
-            </div>
-            <div className="text-lg font-bold text-blue-600 mt-1">
-              ❌ 누르지 마세요!
-            </div>
-          </div>
+        <div className="p-4 border-2 border-blue-300 bg-blue-50 rounded-xl">
+          <p className="text-2xl">🐻 <span className="text-blue-600 font-bold">파랑</span> = 무시!</p>
         </div>
-
-        <button
-          onClick={handleStartGame}
-          className="w-full h-12 bg-[#2E7D32] text-white text-base font-bold rounded-xl active:bg-[#1B5E20] transition-colors shadow-lg touch-manipulation mt-2"
-        >
-          게임 시작하기
-        </button>
+        <div className="text-sm text-gray-500 mt-2">
+          가끔 두 마리가 동시에 나오기도 해요! 👀
+        </div>
+        <button onClick={startGame} className="w-full bg-[#2E7D32] text-white py-3 rounded-xl font-bold mt-2">게임 시작</button>
       </div>
     );
   }
 
-  // 게임 화면
+  if (phase === 'complete') {
+      return <div className="text-center text-3xl font-bold text-gray-700 py-10">게임 종료!</div>;
+  }
+
   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center px-2">
-        <div className="text-lg font-bold text-gray-700">
-          정답: {score.correct} | 오답: {score.wrong}
-        </div>
-        <div className={`text-lg font-bold ${timeLeft <= 5 ? 'text-red-600 animate-pulse' : 'text-gray-700'}`}>
-          ⏱ {timeLeft}초
-        </div>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center px-4 font-bold text-lg text-gray-700">
+         <div>점수: {score.correct}</div>
+         <div className={timeLeft <= 5 ? 'text-red-500 animate-pulse' : ''}>남은 시간: {timeLeft}</div>
       </div>
-      <div className="text-center text-sm text-gray-600 mb-2">
-        <span className="text-red-600 font-bold">빨간색 곰돌이</span>가 나오면 누르고, <span className="text-blue-600 font-bold">파란색 곰돌이</span>가 나오면 누르지 마세요!
-      </div>
-      <div className="grid grid-cols-3 gap-2 max-w-[300px] mx-auto relative">
+      <div className="grid grid-cols-3 gap-2 max-w-[300px] mx-auto select-none">
         {Array.from({ length: 9 }).map((_, idx) => {
-          const mole = moles.find(m => m.position === idx && m.active);
-          const feedback = showFeedback?.position === idx ? showFeedback.type : null;
-          
+          const mole = moles.find(m => m.position === idx);
           return (
-            <div
-              key={idx}
-              className="h-24 bg-gray-200 rounded-xl relative overflow-hidden"
-            >
+            <div key={idx} className="h-24 bg-gray-200 rounded-xl relative overflow-hidden shadow-inner">
               {mole && (
                 <button
-                  onClick={() => handleMoleClick(mole)}
+                  onPointerDown={() => handleWhack(mole)}
                   className={`w-full h-full text-5xl flex items-center justify-center animate-bounce touch-manipulation ${
                     mole.color === 'red' ? 'bg-red-500' : 'bg-blue-500'
                   }`}
@@ -619,19 +580,9 @@ function WhackAMoleGame({ onComplete, timeLimit }: { onComplete: (accuracy: numb
                   🐻
                 </button>
               )}
-              {feedback && (
-                <div className={`absolute inset-0 flex items-center justify-center text-4xl font-bold ${
-                  feedback === 'correct' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {feedback === 'correct' ? '✓' : '✗'}
-                </div>
-              )}
             </div>
           );
         })}
-      </div>
-      <div className="text-center text-xs text-gray-500">
-        정확도: {score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0}%
       </div>
     </div>
   );
@@ -673,6 +624,10 @@ interface GameState {
   timeRemaining?: number; // 타이머
   showingBreak?: boolean; // 휴식 메시지 표시 중
   reactionTime?: number; // 반응 속도 (ms)
+  schulteTime?: number; // 슐테 테이블 완료 시간 (초)
+  cardAttempts?: number; // 카드 짝 맞추기 시도 횟수
+  reverseNumberSequence?: number[]; // 숫자 거꾸로 문제의 랜덤 시퀀스
+  whackAccuracy?: number; // 두더지 게임 정확도 (%)
 }
 
 const TOTAL_QUESTIONS = QUIZ_QUESTIONS.length;
@@ -687,6 +642,10 @@ export default function Home() {
     timeRemaining: undefined,
     showingBreak: false,
     reactionTime: undefined,
+    schulteTime: undefined,
+    cardAttempts: undefined,
+    reverseNumberSequence: undefined,
+    whackAccuracy: undefined,
   });
 
 
@@ -734,6 +693,48 @@ export default function Home() {
         handleNextStep();
       }, 3000);
       return () => clearTimeout(timer);
+    }
+  }, [gameState.currentStep]);
+
+  // Q3 (숫자 거꾸로): 랜덤 숫자 시퀀스 생성
+  useEffect(() => {
+    if (gameState.currentStep === 2) { // Q3은 currentStep 2
+      const question = QUIZ_QUESTIONS[2];
+      if (question.type === 'reverse-number-input' && !gameState.reverseNumberSequence) {
+        // 여러 5자리 숫자 조합 중 랜덤 선택
+        const sequences = [
+          [9, 4, 8, 3, 7], // 거꾸로: 7-3-8-4-9
+          [2, 5, 1, 6, 9], // 거꾸로: 9-6-1-5-2
+          [3, 7, 2, 8, 4], // 거꾸로: 4-8-2-7-3
+          [6, 1, 9, 3, 5], // 거꾸로: 5-3-9-1-6
+          [4, 8, 1, 7, 2], // 거꾸로: 2-7-1-8-4
+          [5, 2, 9, 6, 3], // 거꾸로: 3-6-9-2-5
+          [7, 3, 5, 1, 8], // 거꾸로: 8-1-5-3-7
+          [1, 6, 4, 9, 2], // 거꾸로: 2-9-4-6-1
+          [8, 2, 6, 4, 1], // 거꾸로: 1-4-6-2-8
+          [3, 9, 5, 2, 7], // 거꾸로: 7-2-5-9-3
+          [6, 4, 8, 1, 5], // 거꾸로: 5-1-8-4-6
+          [2, 7, 3, 9, 4], // 거꾸로: 4-9-3-7-2
+          [5, 1, 7, 4, 6], // 거꾸로: 6-4-7-1-5
+          [9, 3, 6, 2, 8], // 거꾸로: 8-2-6-3-9
+          [4, 7, 1, 5, 9], // 거꾸로: 9-5-1-7-4
+        ];
+        
+        const randomSequence = sequences[Math.floor(Math.random() * sequences.length)];
+        
+        setGameState((prev) => {
+          // 기존 답변 제거를 위해 해당 키를 제외한 새 객체 생성
+          const { [question.id]: _, ...restAnswers } = prev.answers;
+          return {
+            ...prev,
+            reverseNumberSequence: randomSequence,
+            answers: restAnswers,
+          };
+        });
+        
+        // 정답을 quizData에 동적으로 업데이트 (실제로는 gameState에서 관리)
+        // calculateScores에서 gameState.reverseNumberSequence를 사용하도록 수정 필요
+      }
     }
   }, [gameState.currentStep]);
 
@@ -846,7 +847,7 @@ export default function Home() {
     }));
   };
 
-  // 점수 계산
+  // 점수 계산 (차등 점수 시스템 적용)
   const calculateScores = () => {
     const categoryScores: Record<CategoryName, number> = {
       기억력: 0,
@@ -872,120 +873,261 @@ export default function Home() {
       주의력: 0,
     };
 
+    let correctCount = 0;
+
+    // 2. 모든 문제 채점 루프
     QUIZ_QUESTIONS.forEach((q) => {
-      const answer = gameState.answers[q.id];
-      categoryMaxScores[q.category] += q.score;
+      const ans = gameState.answers[q.id];
+      const maxPoints = q.score;
+      let earnedPoints = 0;
 
-      if (!answer) return;
+      // 해당 문제의 카테고리 만점(분모) 증가
+      categoryMaxScores[q.category] += maxPoints;
 
-      let isCorrect = false;
-      if (Array.isArray(q.correctAnswer)) {
-        if (Array.isArray(answer)) {
-          // Q6 (지연 회상): 3개 이상 맞추면 점수 (부분 점수)
-          if (q.id === 6) {
-            const correctCount = (q.correctAnswer as string[]).filter((ans) => (answer as string[]).includes(ans)).length;
-            isCorrect = correctCount >= 3; // 3개 이상 맞추면 정답
-          } 
-          // Q2 (숫자 거꾸로): number[] 배열 비교
-          else if (q.type === 'reverse-number-input' && q.correctAnswer.length === answer.length) {
-            isCorrect = (q.correctAnswer as number[]).every((val, idx) => val === (answer as number[])[idx]);
+      // 답이 없으면 0점 처리하고 다음으로
+      if (!ans) return;
+
+      // --- [게임 1] 반응 속도 (0.1초 단위 평가) ---
+      if (q.type === 'reaction-speed') {
+        const time = gameState.reactionTime || 9999;
+        if (ans === 'completed') {
+          if (time <= 300) earnedPoints = maxPoints;        // 0.3초 이하 (만점)
+          else if (time <= 450) earnedPoints = Math.round(maxPoints * 0.8); // 0.45초 (우수)
+          else if (time <= 600) earnedPoints = Math.round(maxPoints * 0.5); // 0.6초 (보통)
+          else earnedPoints = 0;                            // 느림 (0점)
+          
+          if (earnedPoints > 0) correctCount++;
+        }
+      }
+      
+      // --- [게임 2] 슐테 테이블 (시간 등급제) ---
+      else if (q.type === 'schulte-table') {
+        if (ans === 'completed') {
+          const time = gameState.schulteTime || 999;
+          if (time <= 25) earnedPoints = maxPoints;         // 25초 컷 (만점)
+          else if (time <= 35) earnedPoints = Math.round(maxPoints * 0.7); // 35초 (양호)
+          else if (time <= 50) earnedPoints = Math.round(maxPoints * 0.4); // 50초 (주의)
+          else earnedPoints = 0;                            // 실패 수준
+          
+          if (earnedPoints > 0) correctCount++;
+        }
+      }
+
+      // --- [게임 3] 카드 짝 맞추기 (시도 횟수 감점) ---
+      else if (q.type === 'card-match') {
+        if (ans === 'completed') {
+          const attempts = gameState.cardAttempts || 999;
+          // 5쌍(10장)을 맞추는데 최소 5회(이상적), 최대 10회(완벽)
+          if (attempts <= 10) earnedPoints = maxPoints; // 10회 이하: 만점 (기억력 우수)
+          else if (attempts <= 14) earnedPoints = Math.round(maxPoints * 0.7); // 14회 이하: 70%
+          else if (attempts <= 18) earnedPoints = Math.round(maxPoints * 0.4); // 18회 이하: 40%
+          else earnedPoints = Math.round(maxPoints * 0.2); // 18회 초과: 20%
+          
+          if (earnedPoints > 0) correctCount++;
+        }
+      }
+
+      // --- [게임 4] 두더지 잡기 (정확도 기반) ---
+      else if (q.type === 'whack-a-mole') {
+        if (ans === 'completed') {
+          const accuracy = gameState.whackAccuracy || 0;
+          if (accuracy >= 90) earnedPoints = maxPoints;         // 90% 이상 (만점)
+          else if (accuracy >= 80) earnedPoints = Math.round(maxPoints * 0.8); // 80% 이상 (우수)
+          else if (accuracy >= 75) earnedPoints = Math.round(maxPoints * 0.6); // 75% 이상 (양호)
+          else if (accuracy >= 60) earnedPoints = Math.round(maxPoints * 0.4); // 60% 이상 (주의)
+          else earnedPoints = 0;                            // 60% 미만 (0점)
+          
+          if (earnedPoints > 0) correctCount++;
+        }
+      }
+
+      // --- [문제] 지연 회상 (부분 점수) ---
+      else if (q.type === 'multi-choice') {
+        // 정답 배열과 사용자 응답 배열 비교
+        if (Array.isArray(ans) && Array.isArray(q.correctAnswer)) {
+          const correctList = q.correctAnswer as string[];
+          const userList = ans as string[];
+          const matchCount = correctList.filter(item => userList.includes(item)).length;
+
+          if (matchCount === 3) {
+            earnedPoints = maxPoints; // 3개 다 맞춤
+            correctCount++;
+          } else if (matchCount === 2) {
+            earnedPoints = Math.round(maxPoints * 0.5); // 2개 맞춤
+          } else {
+            earnedPoints = 0; // 1개 이하는 0점
           }
-          // 기타 배열 비교
-          else {
+        }
+      }
+
+      // --- [문제] 숫자 거꾸로 (엄격 채점) ---
+      else if (q.type === 'reverse-number-input') {
+        // 배열 내용이 완벽히 같아야 함
+        if (Array.isArray(ans) && ans.length === 5) {
+          const sequence = gameState.reverseNumberSequence || [9, 4, 8, 3, 7];
+          const correctAnswer = [...sequence].reverse();
+          const isPerfect = correctAnswer.every((val, idx) => val === (ans as number[])[idx]);
+          if (isPerfect) {
+            earnedPoints = maxPoints;
+            correctCount++;
+          } else {
+            earnedPoints = 0;
+          }
+        }
+      }
+
+      // --- [설문] 가족 부양 (점수 없음) ---
+      else if (q.type === 'family-care') {
+        earnedPoints = 0; // 점수에 영향 안 줌
+      }
+
+      // --- [일반 객관식] ---
+      else {
+        if (Array.isArray(q.correctAnswer)) {
+          if (Array.isArray(ans)) {
             const correctAnswers = q.correctAnswer as string[];
-            const userAnswers = answer as string[];
-            isCorrect =
-              correctAnswers.length === userAnswers.length &&
-              correctAnswers.every((ans) => userAnswers.includes(ans));
+            const userAnswers = ans as string[];
+            const isCorrect = correctAnswers.length === userAnswers.length &&
+              correctAnswers.every((a) => userAnswers.includes(a));
+            if (isCorrect) {
+              earnedPoints = maxPoints;
+              correctCount++;
+            } else {
+              earnedPoints = 0;
+            }
           }
-        }
-      } else {
-        // 게임 타입들은 'completed'를 정답으로 처리
-        if (q.type === 'card-match' || q.type === 'schulte-table' || q.type === 'whack-a-mole' || q.type === 'reaction-speed') {
-          isCorrect = answer === 'completed';
         } else {
-          isCorrect = answer === q.correctAnswer;
+          // 문자열 비교 시 타입 변환하여 정확히 비교
+          const answerStr = String(ans).trim();
+          const correctStr = String(q.correctAnswer).trim();
+          if (answerStr === correctStr) {
+            earnedPoints = maxPoints;
+            correctCount++;
+          } else {
+            earnedPoints = 0;
+          }
         }
       }
 
-      if (isCorrect) {
-        categoryScores[q.category] += q.score;
-      }
+      // 3. 획득 점수를 해당 카테고리에 누적
+      categoryScores[q.category] += earnedPoints;
     });
 
+    // 4. 총점 계산
     const totalScore = Object.values(categoryScores).reduce((a, b) => a + b, 0);
     const maxScore = Object.values(categoryMaxScores).reduce((a, b) => a + b, 0);
-    const correctCount = Object.entries(gameState.answers).filter(([qId, ans]) => {
-      const q = QUIZ_QUESTIONS.find((q) => q.id === parseInt(qId));
-      if (!q || !ans) return false;
-      if (Array.isArray(q.correctAnswer)) {
-        if (Array.isArray(ans)) {
-          // Q6 (지연 회상): 3개 이상 맞추면 정답으로 카운트
-          if (q.id === 6) {
-            return (q.correctAnswer as string[]).filter((a) => (ans as string[]).includes(a)).length >= 3;
-          }
-          // Q2 (숫자 거꾸로): number[] 배열 비교
-          if (q.type === 'reverse-number-input' && q.correctAnswer.length === ans.length) {
-            return (q.correctAnswer as number[]).every((val, idx) => val === (ans as number[])[idx]);
-          }
-          const correctAnswers = q.correctAnswer as string[];
-          const userAnswers = ans as string[];
-          return correctAnswers.length === userAnswers.length && correctAnswers.every((a) => userAnswers.includes(a));
-        }
-        return false;
-      }
-      // 게임 타입들은 'completed'를 정답으로 처리
-      if (q.type === 'card-match' || q.type === 'schulte-table' || q.type === 'whack-a-mole' || q.type === 'reaction-speed') {
-        return ans === 'completed';
-      }
-      return ans === q.correctAnswer;
-    }).length;
 
     return { categoryScores, categoryMaxScores, totalScore, maxScore, correctCount };
   };
 
-  // 카테고리별 상세 피드백 메시지
-  const getCategoryFeedback = (category: CategoryName, percent: number, score: number, max: number): string | null => {
+  // 카테고리별 상세 피드백 메시지 (틀린 문제의 해답 포함)
+  const getCategoryFeedback = (category: CategoryName, percent: number, score: number, max: number): { message: string; solution?: string } | null => {
     if (percent >= 80) return null; // 정상 범위면 피드백 없음
 
-    const feedbacks: Record<CategoryName, (p: number) => string> = {
-      작업기억: (p) => {
-        if (p < 60) {
-          return '숫자 거꾸로 문제를 틀리셨네요. 작업기억은 치매 초기 단계에서 가장 먼저 무너지는 부분입니다. 전문의 상담을 권장합니다.';
+    // 해당 카테고리의 틀린 문제 찾기
+    const wrongQuestions = QUIZ_QUESTIONS.filter(q => {
+      if (q.category !== category) return false;
+      const answer = gameState.answers[q.id];
+      if (!answer) return false;
+      
+      // 정답 여부 확인
+      if (q.type === 'reverse-number-input') {
+        if (Array.isArray(answer) && answer.length === 5) {
+          const sequence = gameState.reverseNumberSequence || [9, 4, 8, 3, 7];
+          const correctAnswer = [...sequence].reverse();
+          return !correctAnswer.every((val, idx) => val === (answer as number[])[idx]);
         }
-        return '작업기억력이 평균보다 낮습니다. 뇌 건강 관리가 필요합니다.';
+        return true;
+      } else if (q.type === 'multi-choice') {
+        if (Array.isArray(answer) && Array.isArray(q.correctAnswer)) {
+          const correct = (q.correctAnswer as string[]).filter(a => (answer as string[]).includes(a)).length;
+          return correct < 3;
+        }
+        return true;
+      } else if (['card-match', 'schulte-table', 'whack-a-mole', 'reaction-speed'].includes(q.type)) {
+        return answer !== 'completed';
+      } else {
+        const answerStr = String(answer).trim();
+        const correctStr = String(q.correctAnswer).trim();
+        return answerStr !== correctStr;
+      }
+    });
+
+    const feedbacks: Record<CategoryName, (p: number, wrongQ?: QuizQuestion) => { message: string; solution?: string }> = {
+      작업기억: (p, wrongQ) => {
+        if (p < 60 && wrongQ) {
+          if (wrongQ.type === 'reverse-number-input') {
+            const sequence = gameState.reverseNumberSequence || [9, 4, 8, 3, 7];
+            const userAnswer = gameState.answers[wrongQ.id] as number[];
+            const correctAnswer = [...sequence].reverse();
+            return {
+              message: '숫자 거꾸로 문제를 틀리셨네요. 작업기억은 치매 초기 단계에서 가장 먼저 무너지는 부분입니다. 전문의 상담을 권장합니다.',
+              solution: `📝 해답: 보신 숫자는 [${sequence.join('-')}]이고, 거꾸로 입력하면 [${correctAnswer.join('-')}]입니다. ${userAnswer ? `입력하신 답: [${userAnswer.join('-')}]` : ''}`
+            };
+          }
+        }
+        return { message: '작업기억력이 평균보다 낮습니다. 뇌 건강 관리가 필요합니다.' };
       },
-      억제능력: (p) => {
+      억제능력: (p, wrongQ) => {
         if (p < 60) {
-          return '색깔과 글자 간섭 문제는 전두엽 기능을 보는 핵심 검사입니다. 전두엽 기능 저하는 치매 초기 증상일 수 있습니다.';
+          return {
+            message: '색깔과 글자 간섭 문제는 전두엽 기능을 보는 핵심 검사입니다. 전두엽 기능 저하는 치매 초기 증상일 수 있습니다.',
+            solution: '📝 해답: "노랑"이라는 글자가 파란색으로 표시되어 있으므로, 글자 내용이 아닌 색깔인 "파랑"이 정답입니다.'
+          };
         }
-        return '억제능력이 평균보다 낮습니다. 집중력 훈련을 추천합니다.';
+        return { message: '억제능력이 평균보다 낮습니다. 집중력 훈련을 추천합니다.' };
       },
-      계산력: (p) => {
-        if (p < 60) {
-          return '연속 뺄셈 문제를 틀리셨네요. 100-7=93, 93-7=86, 86-7=79가 정답입니다. 계산력 저하는 인지 기능 저하의 신호일 수 있습니다.';
+      계산력: (p, wrongQ) => {
+        if (p < 60 && wrongQ) {
+          if (wrongQ.type === 'serial-subtraction') {
+            const userAnswer = gameState.answers[wrongQ.id];
+            return {
+              message: '연속 뺄셈 문제를 틀리셨네요. 계산력 저하는 인지 기능 저하의 신호일 수 있습니다.',
+              solution: `📝 해답: 첫 번째 100-7=93, 두 번째 93-7=86, 세 번째 86-7=79. 정답은 79입니다. ${userAnswer ? `입력하신 답: ${userAnswer}` : ''}`
+            };
+          } else if (wrongQ.type === 'complex-calculation') {
+            const userAnswer = gameState.answers[wrongQ.id];
+            return {
+              message: '복합 계산 문제를 틀리셨네요. 계산력 저하는 인지 기능 저하의 신호일 수 있습니다.',
+              solution: `📝 해답: ${wrongQ.questionText} 정답은 ${wrongQ.correctAnswer}입니다. ${userAnswer ? `입력하신 답: ${userAnswer}` : ''}`
+            };
+          }
         }
-        return '계산력이 평균보다 낮습니다. 두뇌 운동을 꾸준히 해보세요.';
+        return { message: '계산력이 평균보다 낮습니다. 두뇌 운동을 꾸준히 해보세요.' };
       },
-      기억력: (p) => {
-        if (p < 60) {
-          return '지연 회상 문제를 틀리셨습니다. 기억력 저하는 치매의 가장 흔한 초기 증상입니다. 전문의 상담이 필요합니다.';
+      기억력: (p, wrongQ) => {
+        if (p < 60 && wrongQ) {
+          if (wrongQ.type === 'multi-choice' && wrongQ.id === 9) {
+            const userAnswer = gameState.answers[wrongQ.id] as string[];
+            const correctAnswer = wrongQ.correctAnswer as string[];
+            return {
+              message: '지연 회상 문제를 틀리셨습니다. 기억력 저하는 치매의 가장 흔한 초기 증상입니다. 전문의 상담이 필요합니다.',
+              solution: `📝 해답: 처음에 보신 그림 3개는 ${correctAnswer.join(', ')}입니다. ${userAnswer ? `입력하신 답: ${userAnswer.join(', ')}` : ''}`
+            };
+          }
         }
-        return '기억력이 평균보다 낮습니다. 규칙적인 뇌 건강 관리가 필요합니다.';
+        return { message: '기억력이 평균보다 낮습니다. 규칙적인 뇌 건강 관리가 필요합니다.' };
       },
-      지남력: () => '지남력이 평균보다 낮습니다. 일상생활 주의가 필요합니다.',
-      시공간: () => '시공간 능력이 평균보다 낮습니다.',
-      집행기능: () => '집행기능이 평균보다 낮습니다.',
-      판단력: () => '판단력이 평균보다 낮습니다.',
-      주의력: (p) => {
-        if (p < 60) {
-          return '기호 찾기 문제를 틀리셨네요. 세잎클로버♣️는 총 7개입니다. (네잎클로버🍀는 제외) 주의력 저하는 치매 초기 증상일 수 있습니다. 전문의 상담을 권장합니다.';
+      지남력: () => ({ message: '지남력이 평균보다 낮습니다. 일상생활 주의가 필요합니다.' }),
+      시공간: () => ({ message: '시공간 능력이 평균보다 낮습니다.' }),
+      집행기능: () => ({ message: '집행기능이 평균보다 낮습니다.' }),
+      판단력: () => ({ message: '판단력이 평균보다 낮습니다.' }),
+      주의력: (p, wrongQ) => {
+        if (p < 60 && wrongQ) {
+          if (wrongQ.type === 'symbol-count') {
+            const userAnswer = gameState.answers[wrongQ.id];
+            return {
+              message: '기호 찾기 문제를 틀리셨네요. 주의력 저하는 치매 초기 증상일 수 있습니다. 전문의 상담을 권장합니다.',
+              solution: `📝 해답: 세잎클로버♣️는 총 7개입니다. (네잎클로버🍀는 제외) ${userAnswer ? `입력하신 답: ${userAnswer}` : ''}`
+            };
+          }
         }
-        return '주의력이 평균보다 낮습니다. 집중력 훈련을 추천합니다.';
+        return { message: '주의력이 평균보다 낮습니다. 집중력 훈련을 추천합니다.' };
       },
     };
 
-    return feedbacks[category]?.(percent) || null;
+    const wrongQ = wrongQuestions[0]; // 첫 번째 틀린 문제
+    return feedbacks[category]?.(percent, wrongQ) || null;
   };
 
   const getBrainAge = (score: number): string => {
@@ -1148,28 +1290,350 @@ export default function Home() {
       );
     }
 
-    // 결과 화면
+    // 결과 화면 (고도화된 간병비 알고리즘 적용)
     if (gameState.currentStep >= TOTAL_QUESTIONS) {
-      const { categoryScores, categoryMaxScores, totalScore, maxScore, correctCount } = calculateScores();
+      const { categoryScores, categoryMaxScores, totalScore, maxScore } = calculateScores();
       const percentage = Math.round((totalScore / maxScore) * 100);
-      const brainAge = getBrainAge(percentage);
-      const message = getBrainAgeMessage(percentage, correctCount);
       
-      // 간병비 계산 (점수가 80점 미만일 때)
-      const estimatedMonthlyCost = percentage < 80 ? Math.round((80 - percentage) * 4.375) : 0; // 최대 350만원
-      const estimatedYearlyCost = estimatedMonthlyCost * 12;
+      // 1. 나이 가져오기 (입력 안 했으면 기본 60세로 가정)
+      const userAge = gameState.userProfile.age || 60;
       
-      // 가족 부양 질문 답변 가져오기 (id 13)
+      // 2. 핵심 위험 요소 확인
+      // - 기억력 저하 여부
+      const memoryScore = categoryScores['기억력'];
+      const memoryMax = categoryMaxScores['기억력'];
+      const isMemoryFail = memoryMax > 0 && (memoryScore / memoryMax) < 0.6;
+      
+      // - 반응속도 저하 여부 (0.5초 이상이면 느림)
+      const reactionTime = gameState.reactionTime || 0;
+      const isSlowReaction = reactionTime > 500;
+
+      // - 가족 설문 답변
       const familyCareAnswer = gameState.answers[13] as string;
-      
-      // 황금 뇌 인증서 (90점 이상)
-      const isGoldBrain = percentage >= 90;
+
+      // ---------------------------------------------------------
+      // 💰 [핵심] 다이내믹 예상 비용 산출 알고리즘
+      // ---------------------------------------------------------
+      let baseCost = 0; // 월 예상 비용 (단위: 만 원)
+
+      // (1) 점수 기반 기초 비용 (95점에서 1점 까일 때마다 3만원 추가)
+      if (percentage < 95) {
+          baseCost += (95 - percentage) * 3; 
+      }
+
+      // (2) 나이 가중치 (50세 이상부터, 1살당 2만원씩 할증)
+      if (userAge >= 50) {
+          baseCost += (userAge - 50) * 2;
+      }
+
+      // (3) 피지컬 페널티 (반응속도 느리면 +40만원)
+      if (isSlowReaction) {
+          baseCost += 40;
+      }
+
+      // (4) 기억력 페널티 (기억력 나쁘면 +50만원)
+      if (isMemoryFail) {
+          baseCost += 50;
+      }
+
+      // (5) 기회비용 (자녀 선택 시 자녀 소득 중단 고려 -> +150만원)
+      if (familyCareAnswer === '자녀') {
+          baseCost += 150; 
+      } else if (familyCareAnswer === '간병인/요양병원') {
+          baseCost += 100; // 간병인 기본 시세 반영
+      }
+
+      // (6) 최소/최대 보정 (최소 0원 ~ 최대 450만원)
+      if (percentage >= 95 && !isSlowReaction && !isMemoryFail) baseCost = 0; // 완벽하면 0원
+      if (baseCost > 450) baseCost = 450; // 요양병원 Max치
+
+      // 연간 비용 계산
+      const estimatedYearlyCost = baseCost * 12;
+
+      // 뇌 나이 텍스트 생성
+      let brainAgeText = '20대 (최고)';
+      if (percentage < 60) brainAgeText = `${userAge + 15}세 (위험)`;
+      else if (percentage < 80) brainAgeText = `${userAge + 8}세 (주의)`;
+      else if (percentage < 90) brainAgeText = `${userAge + 3}세 (관리 필요)`;
+      else brainAgeText = `${Math.max(20, userAge - 5)}세 (양호)`;
+
+      const isGoldBrain = percentage >= 95 && !isMemoryFail && !isSlowReaction; // 황금 인증서 기준
 
       return (
-        <div className="flex flex-col items-center justify-start h-full p-2 space-y-2 bg-gradient-to-b from-green-50 to-orange-50 overflow-y-auto">
-          <div className="text-4xl mb-1 flex-shrink-0 pt-2">🐻</div>
+        <div className="flex flex-col items-center h-full p-4 space-y-4 overflow-y-auto bg-gradient-to-b from-green-50 to-orange-50">
+          <div className="text-6xl mt-4">📋</div>
+          <h2 className="text-2xl font-bold text-gray-800">종합 정밀 분석</h2>
           
-          {/* 황금 뇌 인증서 (90점 이상) */}
+          <div className="bg-white p-6 rounded-2xl shadow-lg w-full text-center relative overflow-hidden">
+            <p className="text-gray-500 font-bold">나의 뇌 활력 점수</p>
+            <div className="text-6xl font-black text-[#2E7D32] my-3">{percentage}점</div>
+            <div className="flex justify-center items-center gap-2">
+              <span className="text-gray-600">신체 나이: {userAge}세</span>
+              <span className="text-gray-300">|</span>
+              <span className="text-lg font-bold text-[#EF6C00]">뇌 나이: {brainAgeText}</span>
+            </div>
+            
+            {/* 경고 태그들 */}
+            <div className="flex flex-wrap justify-center gap-2 mt-4">
+              {isMemoryFail && <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">🚨 기억력 저하</span>}
+              {isSlowReaction && <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">⚡ 반응속도 느림</span>}
+              {familyCareAnswer === '자녀' && <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">💔 자녀 부담 위험</span>}
+            </div>
+          </div>
+
+          {/* 예상 비용 시뮬레이터 (가장 중요한 세일즈 포인트) */}
+          <div className={`w-full p-5 border-2 rounded-xl shadow-md transition-all ${baseCost > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+            <p className="text-center font-bold text-gray-700 mb-1">
+              📉 향후 발생 가능한 <span className="text-red-600">월 관리 비용</span>
+            </p>
+            <p className="text-center text-xs text-gray-500 mb-4">
+              (현재 점수 + 연령 + 가족 상황 + 물가 상승률 반영)
+            </p>
+            
+            <div className="flex justify-between items-end border-b border-gray-300 pb-2 mb-2">
+              <span className="text-gray-700 font-medium">월 예상 지출</span>
+              <span className={`text-3xl font-black ${baseCost > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                <AnimatedNumber value={baseCost} />만 원
+              </span>
+            </div>
+            
+            <div className="flex justify-between items-end">
+              <span className="text-gray-700 font-medium">10년 누적 손실</span>
+              <span className="text-xl font-bold text-gray-800">
+                약 <AnimatedNumber value={estimatedYearlyCost * 10} />만 원
+              </span>
+            </div>
+
+            {/* 비용에 따른 맞춤 멘트 */}
+            <div className="mt-4 bg-white p-3 rounded-lg border border-gray-200 text-center">
+              {baseCost === 0 ? (
+                <p className="text-sm text-green-700 font-bold">
+                  🎉 완벽합니다! 이대로만 관리하세요.
+                </p>
+              ) : baseCost < 150 ? (
+                <p className="text-sm text-orange-700">
+                  "아직은 괜찮지만, <span className="font-bold">월 {baseCost}만원</span>의 예방 투자가 필요합니다."
+                </p>
+              ) : (
+                <p className="text-sm text-red-700 font-bold animate-pulse">
+                  "경고: 지금 준비 안 하면 자녀에게 큰 짐이 됩니다."
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* 영역별 점수 표시 (간소화) */}
+          <div className="w-full bg-white p-4 rounded-xl shadow-lg">
+            <p className="text-lg font-bold text-gray-800 text-center mb-3">영역별 점수</p>
+            <div className="space-y-2">
+              {CATEGORIES.map((category) => {
+                const score = categoryScores[category];
+                const max = categoryMaxScores[category];
+                if (max === 0) return null;
+                const percent = Math.round((score / max) * 100);
+                const feedback = getCategoryFeedback(category, percent, score, max);
+                
+                return (
+                  <div key={category} className="mb-2">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm text-gray-700">{category}</span>
+                      <span className={`text-sm font-bold ${percent >= 80 ? 'text-green-600' : 'text-red-600'}`}>
+                        {score}/{max} ({percent}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          percent >= 80 ? 'bg-green-500' : percent >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${percent}%` }}
+                      ></div>
+                    </div>
+                    {feedback && (
+                      <div className="mt-1 p-2 bg-red-50 border-l-4 border-red-500 rounded-r">
+                        <p className="text-xs text-red-800 leading-relaxed mb-1">{feedback.message}</p>
+                        {feedback.solution && (
+                          <div className="mt-2 p-2 bg-white rounded border border-red-200">
+                            <p className="text-xs text-gray-700 leading-relaxed font-semibold">{feedback.solution}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 가족 부양 부담 분석 */}
+          {familyCareAnswer && (
+            <div className="w-full p-4 bg-orange-50 border-2 border-orange-300 rounded-xl">
+              <p className="text-lg font-bold text-center text-orange-800 mb-3">
+                💭 가족 부양 부담 분석
+              </p>
+              <div className="bg-white p-4 rounded-xl">
+                {familyCareAnswer === '배우자' && (
+                  <p className="text-base text-orange-800 text-center leading-relaxed">
+                    배우자님께 의존하시는군요.<br />
+                    하지만 배우자님도 연로하시면<br />
+                    <span className="font-bold">서로 돌보기 어려운 상황</span>이<br />
+                    올 수 있습니다.
+                  </p>
+                )}
+                {familyCareAnswer === '자녀' && (
+                  <p className="text-base text-orange-800 text-center leading-relaxed">
+                    자녀분께 의존하시는군요.<br />
+                    하지만 자녀분의<br />
+                    <span className="font-bold">경제활동이 중단</span>되면<br />
+                    가족 전체가<br />
+                    어려워질 수 있습니다.
+                  </p>
+                )}
+                {familyCareAnswer === '간병인/요양병원' && (
+                  <p className="text-base text-orange-800 text-center leading-relaxed">
+                    간병인이나 요양병원을<br />
+                    고려하시는군요.<br />
+                    <span className="font-bold">매달 400만 원 이상</span>의<br />
+                    비용이 필요합니다.
+                  </p>
+                )}
+                {familyCareAnswer === '잘 모르겠다' && (
+                  <p className="text-base text-orange-800 text-center leading-relaxed">
+                    아직 준비가<br />
+                    되어 있지 않으시군요.<br />
+                    <span className="font-bold">지금부터 준비</span>해야 합니다.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 영역별 점수 표시 (간소화) */}
+          <div className="w-full bg-white p-4 rounded-xl shadow-lg">
+            <p className="text-lg font-bold text-gray-800 text-center mb-3">영역별 점수</p>
+            <div className="space-y-2">
+              {CATEGORIES.map((category) => {
+                const score = categoryScores[category];
+                const max = categoryMaxScores[category];
+                if (max === 0) return null;
+                const percent = Math.round((score / max) * 100);
+                const feedback = getCategoryFeedback(category, percent, score, max);
+                
+                return (
+                  <div key={category} className="mb-2">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm text-gray-700">{category}</span>
+                      <span className={`text-sm font-bold ${percent >= 80 ? 'text-green-600' : 'text-red-600'}`}>
+                        {score}/{max} ({percent}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          percent >= 80 ? 'bg-green-500' : percent >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${percent}%` }}
+                      ></div>
+                    </div>
+                    {feedback && (
+                      <div className="mt-1 p-2 bg-red-50 border-l-4 border-red-500 rounded-r">
+                        <p className="text-xs text-red-800 leading-relaxed mb-1">{feedback.message}</p>
+                        {feedback.solution && (
+                          <div className="mt-2 p-2 bg-white rounded border border-red-200">
+                            <p className="text-xs text-gray-700 leading-relaxed font-semibold">{feedback.solution}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 가족 부양 부담 분석 */}
+          {familyCareAnswer && (
+            <div className="w-full p-4 bg-orange-50 border-2 border-orange-300 rounded-xl">
+              <p className="text-lg font-bold text-center text-orange-800 mb-3">
+                💭 가족 부양 부담 분석
+              </p>
+              <div className="bg-white p-4 rounded-xl">
+                {familyCareAnswer === '배우자' && (
+                  <p className="text-base text-orange-800 text-center leading-relaxed">
+                    배우자님께 의존하시는군요.<br />
+                    하지만 배우자님도 연로하시면<br />
+                    <span className="font-bold">서로 돌보기 어려운 상황</span>이<br />
+                    올 수 있습니다.
+                  </p>
+                )}
+                {familyCareAnswer === '자녀' && (
+                  <p className="text-base text-orange-800 text-center leading-relaxed">
+                    자녀분께 의존하시는군요.<br />
+                    하지만 자녀분의<br />
+                    <span className="font-bold">경제활동이 중단</span>되면<br />
+                    가족 전체가<br />
+                    어려워질 수 있습니다.
+                  </p>
+                )}
+                {familyCareAnswer === '간병인/요양병원' && (
+                  <p className="text-base text-orange-800 text-center leading-relaxed">
+                    간병인이나 요양병원을<br />
+                    고려하시는군요.<br />
+                    <span className="font-bold">매달 400만 원 이상</span>의<br />
+                    비용이 필요합니다.
+                  </p>
+                )}
+                {familyCareAnswer === '잘 모르겠다' && (
+                  <p className="text-base text-orange-800 text-center leading-relaxed">
+                    아직 준비가<br />
+                    되어 있지 않으시군요.<br />
+                    <span className="font-bold">지금부터 준비</span>해야 합니다.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* DB 입력 폼 */}
+          <div className="w-full bg-gradient-to-r from-[#2E7D32] to-[#1B5E20] p-5 rounded-2xl text-center shadow-xl text-white">
+            <div className="mb-4">
+              <p className="text-yellow-300 font-bold text-lg animate-bounce">
+                🎁 특별 혜택 대상자입니다!
+              </p>
+              <p className="text-sm opacity-90 mt-1">
+                예상되는 <span className="font-bold text-yellow-300">{baseCost}만원의 비용을 0원</span>으로<br/>
+                만드는 [정부 지원금 + 시크릿 플랜]을<br/>
+                카톡으로 무료 전송해 드립니다.
+              </p>
+            </div>
+            
+            <div className="flex flex-col gap-3">
+              <input 
+                type="tel" 
+                placeholder="휴대폰 번호 입력 (-없이)" 
+                className="w-full p-4 rounded-xl text-gray-900 text-center font-bold text-lg shadow-inner focus:ring-4 focus:ring-yellow-400 outline-none"
+                value={gameState.phoneNumber}
+                onChange={(e) => setGameState(p => ({...p, phoneNumber: e.target.value}))}
+              />
+              <button 
+                onClick={() => {
+                  if(gameState.phoneNumber.length > 9) {
+                    alert(`신청 완료!\n\n${gameState.phoneNumber} 번호로\n[치매 예방 시크릿 리포트]가 발송됩니다.`);
+                  } else {
+                    alert('정확한 전화번호를 입력해주세요.');
+                  }
+                }}
+                className="w-full bg-[#EF6C00] hover:bg-[#E65100] text-white py-4 rounded-xl font-bold text-xl shadow-lg transform active:scale-95 transition-all"
+              >
+                무료 리포트 받기 📩
+              </button>
+            </div>
+            <p className="text-[10px] opacity-60 mt-3">
+              입력하신 정보는 결과지 발송 외의 용도로 사용되지 않습니다.
+            </p>
+          </div>
+
+          {/* 황금 뇌 인증서 (95점 이상) */}
           {isGoldBrain && (
             <div className="w-full mb-2 bg-gradient-to-br from-yellow-50 to-amber-50 border-4 border-yellow-400 rounded-2xl p-4 shadow-lg">
               <div className="text-center">
@@ -1204,223 +1668,54 @@ export default function Home() {
             </div>
           )}
           
-          <div className="bg-white rounded-2xl p-3 shadow-lg w-full flex-shrink-0">
-            <div className="text-center mb-3">
-              <p className="text-2xl font-bold text-[#2E7D32] mb-2">{message}</p>
-              <p className="text-lg text-gray-700">점수: {totalScore}점 / {maxScore}점</p>
-              <p className="text-base text-gray-600 mt-1">뇌 나이: {brainAge}</p>
-              
-              {/* 반응 속도 결과 표시 */}
-              {gameState.reactionTime !== undefined && (
-                <div className={`mt-2 p-2 rounded-xl ${
-                  gameState.reactionTime > 500 ? 'bg-red-50 border-2 border-red-300' : 'bg-blue-50 border-2 border-blue-300'
-                }`}>
-                  <p className={`text-sm font-bold ${
-                    gameState.reactionTime > 500 ? 'text-red-700' : 'text-blue-700'
-                  }`}>
-                    {gameState.reactionTime > 500 
-                      ? `⚠️ 반응 속도: ${(gameState.reactionTime / 1000).toFixed(2)}초 - 뇌 전달 속도가 느려지고 있어요`
-                      : `✅ 반응 속도: ${(gameState.reactionTime / 1000).toFixed(2)}초 - 양호합니다`
+          {/* 공유 버튼 (90점 이하일 때도 표시) */}
+          {!isGoldBrain && (
+            <div className="w-full mb-2 bg-white border-2 border-gray-300 rounded-2xl p-4 shadow-lg">
+              <div className="text-center">
+                <button
+                  onClick={() => {
+                    // 점수에 따른 메시지 생성
+                    let shareTitle = '';
+                    let shareText = '';
+                    
+                    if (percentage >= 70) {
+                      shareTitle = '뇌 건강 테스트 결과!';
+                      shareText = `뇌 건강 테스트에서 ${percentage}점을 받았어요! 뇌 나이는 ${brainAgeText}입니다.`;
+                    } else if (percentage >= 50) {
+                      shareTitle = '뇌 건강 테스트 결과';
+                      shareText = `뇌 건강 테스트에서 ${percentage}점을 받았어요. 뇌 건강 관리를 시작해야 할 것 같아요!`;
+                    } else {
+                      shareTitle = '뇌 건강 테스트 결과';
+                      shareText = `뇌 건강 테스트에서 ${percentage}점을 받았어요. 전문가 상담이 필요할 수 있어요.`;
                     }
-                  </p>
-                  {gameState.reactionTime > 500 && (
-                    <p className="text-xs text-red-600 mt-1">
-                      문제는 잘 푸셨지만, 반응 속도가 느리십니다. 전두엽 훈련이 필요합니다.
-                    </p>
-                  )}
-                </div>
-              )}
+                    
+                    // 공유 기능 (카카오톡 등)
+                    if (navigator.share) {
+                      navigator.share({
+                        title: shareTitle,
+                        text: shareText,
+                        url: window.location.href,
+                      });
+                    } else {
+                      // 공유 불가 시 클립보드 복사
+                      navigator.clipboard.writeText(`${shareText} ${window.location.href}`);
+                      alert('결과 내용이 복사되었습니다! 카톡방에 붙여넣기 하세요.');
+                    }
+                  }}
+                  className="w-full px-4 py-3 bg-[#2E7D32] text-white text-base font-bold rounded-lg active:bg-[#1B5E20] touch-manipulation shadow-lg"
+                >
+                  📱 카톡방에 결과 공유하기
+                </button>
+              </div>
             </div>
+          )}
 
-            {/* 영역별 점수 표시 */}
-            <div className="mb-3 space-y-2">
-              <p className="text-lg font-bold text-gray-800 text-center mb-2">영역별 점수</p>
-              {CATEGORIES.map((category) => {
-                const score = categoryScores[category];
-                const max = categoryMaxScores[category];
-                if (max === 0) return null;
-                const percent = Math.round((score / max) * 100);
-                const normalRange = gameState.userProfile.age > 0 
-                  ? getNormalRange(gameState.userProfile, category)
-                  : { min: 70, max: 100 };
-                const isNormal = percent >= normalRange.min;
-                const feedback = getCategoryFeedback(category, percent, score, max);
-                
-                return (
-                  <div key={category} className="mb-2">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm text-gray-700">{category}</span>
-                      <span className={`text-sm ${isNormal ? 'text-green-600' : 'text-red-600'}`}>
-                        {score}/{max} {isNormal ? '✓' : '⚠'}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div
-                        className={`h-3 rounded-full transition-all ${
-                          percent >= normalRange.min ? 'bg-green-500' : percent >= normalRange.min - 10 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${percent}%` }}
-                      ></div>
-                    </div>
-                    {feedback && (
-                      <div className="mt-1 p-2 bg-red-50 border-l-4 border-red-500 rounded-r">
-                        <p className="text-xs text-red-800 leading-relaxed">{feedback}</p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* 가족 부양 부담 메시지 (Q10 답변 기반) */}
-            {familyCareAnswer && (
-              <div className="mb-3 p-3 bg-orange-50 border-2 border-orange-300 rounded-xl">
-                <p className="text-sm font-bold text-center text-orange-800 mb-2">
-                  💭 가족 부양 부담 분석
-                </p>
-                <div className="bg-white p-3 rounded-xl">
-                  {familyCareAnswer === '배우자' && (
-                    <p className="text-xs text-orange-800 text-center leading-relaxed">
-                      배우자님께 의존하시는군요. 하지만 배우자님도 연로하시면<br />
-                      <span className="font-bold">서로 돌보기 어려운 상황</span>이 올 수 있습니다.
-                    </p>
-                  )}
-                  {familyCareAnswer === '자녀' && (
-                    <p className="text-xs text-orange-800 text-center leading-relaxed">
-                      자녀분께 의존하시는군요. 하지만 자녀분의<br />
-                      <span className="font-bold">경제활동이 중단</span>되면 가족 전체가 어려워질 수 있습니다.
-                    </p>
-                  )}
-                  {familyCareAnswer === '간병인/요양병원' && (
-                    <p className="text-xs text-orange-800 text-center leading-relaxed">
-                      간병인이나 요양병원을 고려하시는군요.<br />
-                      <span className="font-bold">매달 400만 원 이상</span>의 비용이 필요합니다.
-                    </p>
-                  )}
-                  {familyCareAnswer === '잘 모르겠다' && (
-                    <p className="text-xs text-orange-800 text-center leading-relaxed">
-                      아직 준비가 되어 있지 않으시군요.<br />
-                      <span className="font-bold">지금부터 준비</span>해야 합니다.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* 예상 간병비 시뮬레이터 (항상 표시) */}
-            {estimatedMonthlyCost > 0 ? (
-              <div className="mb-3 p-3 bg-red-50 border-2 border-red-300 rounded-xl">
-                <p className="text-base font-bold text-center text-red-800 mb-2">
-                  💰 예상 간병비 계산
-                </p>
-                <div className="bg-white p-3 rounded-xl mb-2">
-                  <p className="text-sm text-gray-700 mb-2">
-                    현재 뇌 건강 상태로 볼 때, 10년 뒤 예상 치매 간병비는?
-                  </p>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600 mb-1">
-                      월 <AnimatedNumber value={estimatedMonthlyCost} />만 원
-                    </div>
-                    <div className="text-lg text-gray-600">
-                      연간 약 <AnimatedNumber value={estimatedYearlyCost} />만 원
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-red-800 text-center leading-relaxed">
-                  ⚠️ 지금 준비하지 않으면, 10년 뒤 자녀분들이<br />
-                  매달 <span className="font-bold">{estimatedMonthlyCost}만 원</span>을 부담해야 할 수도 있습니다.<br />
-                  <span className="font-bold text-[#EF6C00]">이 비용을 0원으로 만드는 방법</span>을 알려드릴까요?
-                </p>
-                {/* 가족 부양 답변과 연계된 추가 메시지 */}
-                {familyCareAnswer === '자녀' && (
-                  <p className="text-xs text-red-700 text-center mt-2 font-bold">
-                    💔 자녀분이 직장을 그만두고 간병해야 한다면?<br />
-                    손실은 더 커집니다.
-                  </p>
-                )}
-                {familyCareAnswer === '배우자' && (
-                  <p className="text-xs text-red-700 text-center mt-2 font-bold">
-                    💔 배우자님도 건강이 나빠지면?<br />
-                    두 분 모두를 돌볼 사람이 필요합니다.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="mb-3 p-3 bg-green-50 border-2 border-green-300 rounded-xl">
-                <p className="text-base font-bold text-center text-green-800 mb-2">
-                  💰 예상 간병비 계산
-                </p>
-                <div className="bg-white p-3 rounded-xl mb-2">
-                  <p className="text-sm text-gray-700 mb-2">
-                    현재 뇌 건강 상태로 볼 때, 10년 뒤 예상 치매 간병비는?
-                  </p>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600 mb-1">
-                      월 0만 원
-                    </div>
-                    <div className="text-lg text-gray-600">
-                      연간 약 0만 원
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-green-800 text-center leading-relaxed">
-                  ✅ 현재 뇌 건강 상태가 양호하여 예상 간병비가 0원입니다!<br />
-                  건강한 뇌를 유지하기 위해 꾸준한 관리가 필요합니다.
-                </p>
-              </div>
-            )}
-
-            <div className="mb-3 p-3 bg-green-50 rounded-xl">
-              <p className="text-base leading-relaxed text-center text-gray-800 mb-2">
-                검사 결과가 걱정되시나요?
-              </p>
-              <p className="text-sm leading-relaxed text-center text-gray-700 mb-2">
-                지금 보신 결과를 바탕으로<br />
-                <span className="font-bold">전문 상담사가 직접 분석</span>해드리고,<br />
-                맞춤형 건강 관리 가이드를<br />
-                무료로 안내해드릴까요?
-              </p>
-              <div className="bg-white p-2 rounded-xl mb-2 border-l-4 border-[#EF6C00]">
-                <p className="text-xs leading-relaxed text-center text-gray-800">
-                  📞 <span className="font-bold">건강 점검 상담</span>과 함께,<br />
-                  필요하시면 <span className="font-bold text-[#EF6C00]">보장 대비 방법</span>도<br />
-                  무료로 안내해드립니다
-                </p>
-              </div>
-              <input
-                type="tel"
-                value={gameState.phoneNumber}
-                onChange={(e) =>
-                  setGameState((prev) => ({ ...prev, phoneNumber: e.target.value }))
-                }
-                placeholder="전화번호 입력 (예: 010-1234-5678)"
-                className="w-full h-12 px-3 text-base border-2 border-gray-300 rounded-xl focus:border-[#2E7D32] focus:outline-none mb-2"
-              />
-              <button
-                onClick={() => {
-                  if (gameState.phoneNumber) {
-                    alert(`전화번호 ${gameState.phoneNumber}로 상세 리포트와 건강 관리 가이드를 전송하겠습니다!\n\n전문 상담사가 곧 연락드려 건강 점검과 보장 대비 상담을 도와드리겠습니다. (실제 구현 시 백엔드 API 연동 필요)`);
-                  } else {
-                    alert('전화번호를 입력해주세요.');
-                  }
-                }}
-                className="w-full h-12 bg-[#EF6C00] text-white text-base font-bold rounded-xl active:bg-[#E65100] transition-colors shadow-lg touch-manipulation"
-              >
-                무료 리포트 및 건강 관리 가이드 받기
-              </button>
-              <p className="text-xs text-center text-gray-500 mt-2">
-                * 개인정보는 건강 상담 목적으로만 사용됩니다
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setGameState({ currentStep: -1, answers: {}, memoryItems: [], userProfile: { gender: '', age: 0 }, phoneNumber: '', reactionTime: undefined });
-              }}
-              className="w-full h-12 bg-gray-300 text-gray-800 text-base font-bold rounded-xl active:bg-gray-400 transition-colors shadow-lg touch-manipulation"
-            >
-              다시 시작하기
-            </button>
-          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="text-gray-500 underline text-sm py-6"
+          >
+            처음부터 다시 테스트하기
+          </button>
         </div>
       );
     }
@@ -1597,12 +1892,12 @@ export default function Home() {
             </div>
           )}
 
-          {/* 숫자 거꾸로 입력 (Q2) - 모바일 한 화면 최적화 */}
+          {/* 숫자 거꾸로 입력 (Q3) - 모바일 한 화면 최적화 */}
           {question.type === 'reverse-number-input' && (
             <div className="space-y-2">
               {/* 숫자 표시 (1초 간격으로 하나씩 표시) - 작게 */}
               <div className="transform scale-90 origin-top">
-                <ReverseNumberDisplay sequence={[2, 9, 4, 8]} />
+                <ReverseNumberDisplay sequence={gameState.reverseNumberSequence || [9, 4, 8, 3, 7]} />
               </div>
               
               {/* 입력된 숫자 표시 - 작게 */}
@@ -1622,11 +1917,11 @@ export default function Home() {
                     key={num}
                     onClick={() => {
                       const current = (currentAnswer as number[]) || [];
-                      if (current.length < 4) {
+                      if (current.length < 5) {
                         handleAnswer(question.id, [...current, num]);
                       }
                     }}
-                    disabled={(currentAnswer as number[])?.length >= 4}
+                    disabled={(currentAnswer as number[])?.length >= 5}
                     className="h-12 text-xl font-bold rounded-lg bg-gray-200 text-gray-800 active:bg-gray-400 disabled:bg-gray-100 disabled:text-gray-400 touch-manipulation transition-colors"
                   >
                     {num}
@@ -1647,7 +1942,7 @@ export default function Home() {
                     지우기
                   </button>
                 )}
-                {(currentAnswer as number[])?.length === 4 && (
+                {(currentAnswer as number[])?.length === 5 && (
                   <button
                     onClick={handleNextStep}
                     className={`h-10 bg-[#2E7D32] text-white text-base font-bold rounded-xl active:bg-[#1B5E20] transition-colors shadow-lg touch-manipulation ${
@@ -1694,7 +1989,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* 연속 뺄셈 (Q5) - MMSE 핵심 문항 (3단계로 개선) */}
+          {/* 연속 뺄셈 (Q7) - MMSE 핵심 문항 (3단계로 개선) */}
           {question.type === 'serial-subtraction' && (
             <div className="space-y-4 sm:space-y-8">
               <div className="bg-orange-100 p-4 sm:p-6 rounded-xl sm:rounded-2xl text-center">
@@ -1873,6 +2168,8 @@ export default function Home() {
             <CardMatchGame
               onComplete={(isSuccess: boolean, attempts: number) => {
                 handleAnswer(question.id, isSuccess ? 'completed' : 'failed');
+                // 시도 횟수 저장 (차등 점수 계산용)
+                setGameState((prev) => ({ ...prev, cardAttempts: attempts }));
                 // handleAnswer에서 자동 진행하지 않으므로 여기서만 handleNextStep 호출
                 setTimeout(() => handleNextStep(), 1500);
               }}
@@ -1885,10 +2182,12 @@ export default function Home() {
             <SchulteTableGame
               onComplete={(time: number, isSuccess: boolean) => {
                 handleAnswer(question.id, isSuccess ? 'completed' : 'failed');
+                // 완료 시간 저장 (차등 점수 계산용)
+                setGameState((prev) => ({ ...prev, schulteTime: time }));
                 // handleAnswer에서 자동 진행하지 않으므로 여기서만 handleNextStep 호출
                 setTimeout(() => handleNextStep(), 1500);
               }}
-              timeLimit={question.timeLimit || 60}
+              timeLimit={question.timeLimit || 30}
             />
           )}
 
@@ -1896,8 +2195,10 @@ export default function Home() {
           {question.type === 'whack-a-mole' && (
             <WhackAMoleGame
               onComplete={(accuracy: number, correctHits: number, wrongHits: number) => {
-                // 정확도 70% 이상이면 성공
-                const isSuccess = accuracy >= 70;
+                // 정확도 저장
+                setGameState((prev) => ({ ...prev, whackAccuracy: accuracy }));
+                // 정확도 75% 이상이면 성공 (난이도 상승)
+                const isSuccess = accuracy >= 75;
                 handleAnswer(question.id, isSuccess ? 'completed' : 'failed');
                 // handleAnswer에서 자동 진행하지 않으므로 여기서만 handleNextStep 호출
                 setTimeout(() => handleNextStep(), 2000);

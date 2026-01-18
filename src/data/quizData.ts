@@ -31,10 +31,10 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     id: 3,
     type: 'reverse-number-input',
     questionText: '숫자가 하나씩 나타납니다. 보신 숫자를 거꾸로 입력하세요!',
-    correctAnswer: [8, 4, 9, 2], // 표시될 순서: 2-9-4-8, 거꾸로: 8-4-9-2
+    correctAnswer: [7, 3, 8, 4, 9], // 표시될 순서: 9-4-8-3-7, 거꾸로: 7-3-8-4-9 (5자리로 증가)
     score: 20, // 작업기억은 점수 높게
     category: '작업기억',
-    timeLimit: 20, // 15초는 짧아서 20초로
+    timeLimit: 18, // 5자리로 증가하여 시간 단축
   },
   {
     id: 4,
@@ -53,7 +53,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     correctAnswer: 'completed', // 완료만 하면 됨
     score: 15,
     category: '주의력',
-    timeLimit: 30, // 30초 제한
+    timeLimit: 30, // 30초 제한 (차등 점수 적용)
   },
   {
     id: 6,
@@ -63,7 +63,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     options: ['5개', '6개', '7개', '8개'],
     score: 15,
     category: '주의력',
-    timeLimit: 12, // 적당한 난이도
+    timeLimit: 10, // 10초로 단축 (난이도 상승)
   },
   {
     id: 7,
@@ -73,17 +73,17 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     options: ['76', '79', '86', '83'],
     score: 15,
     category: '계산력',
-    timeLimit: 25,
+    timeLimit: 20, // 20초로 단축 (난이도 상승)
   },
   {
     id: 8,
     type: 'complex-calculation',
-    questionText: '10,000원을 냈습니다. 1,500원짜리 김밥 3줄과 500원짜리 물 1개를 샀습니다. 거스름돈은?',
-    options: ['4,000원', '4,500원', '5,000원', '5,500원'],
-    correctAnswer: '5,000원',
+    questionText: '20,000원을 냈습니다. 3,200원짜리 도시락 2개와 1,300원짜리 음료수 3개, 그리고 700원짜리 물 2개를 샀습니다. 거스름돈은?',
+    options: ['7,500원', '8,300원', '9,100원', '9,500원'],
+    correctAnswer: '8,300원', // 3,200*2 + 1,300*3 + 700*2 = 6,400 + 3,900 + 1,400 = 11,700원, 거스름돈 = 20,000 - 11,700 = 8,300원
     score: 15,
     category: '계산력',
-    timeLimit: 15,
+    timeLimit: 15, // 복잡한 계산
   },
   {
     id: 9,
@@ -118,7 +118,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     correctAnswer: 'completed', // 완료만 하면 됨
     score: 15,
     category: '억제능력',
-    timeLimit: 20, // 20초 동안
+    timeLimit: 18, // 18초로 단축 (난이도 상승)
   },
   {
     id: 13,
