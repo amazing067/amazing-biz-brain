@@ -649,8 +649,8 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
 
       {/* 안내 문구 - 더 크고 명확하게 */}
       {!showCategoryIntro && (
-        <div className="absolute top-28 left-4 right-4 z-10 text-center">
-          <p className="bg-yellow-100 border-3 border-yellow-500 text-yellow-900 px-4 py-3 rounded-xl text-lg font-black shadow-lg">
+        <div className="absolute top-20 left-4 right-4 z-10 text-center">
+          <p className="bg-yellow-100 border-3 border-yellow-500 text-yellow-900 px-4 py-2.5 rounded-xl text-lg font-black shadow-lg">
             <span className="text-2xl">{currentCategory.icon}</span> <span className="text-xl">{currentCategory.name}</span>에 해당하는 단어만 선택하세요!
           </p>
         </div>
@@ -658,7 +658,7 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
 
       {/* 단어 그리드 - 한 화면에 모두 보이도록 조정 */}
       {!showCategoryIntro && (
-      <div className="absolute top-40 left-4 right-4 bottom-4 flex items-center justify-center">
+      <div className="absolute top-36 left-4 right-4 bottom-4 flex items-center justify-center">
         <div className="grid grid-cols-3 grid-rows-4 gap-2 w-full h-full max-w-md">
           {currentWords.map((word, index) => (
             <button
