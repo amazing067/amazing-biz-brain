@@ -25,7 +25,7 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   { id: 4, type: 'symbol-count', category: '주의력', questionText: "아래 기호들 중에서\n♣️(세잎클로버)는 몇 개일까요?", options: ['5개', '6개', '7개', '8개'], correctAnswer: '7개', score: 10, timeLimit: 10 },
   { id: 5, type: 'reverse-number-input', category: '작업기억', questionText: "숫자를 기억했다가\n거꾸로 입력해주세요.", correctAnswer: [7,3,8,4,9], score: 10, timeLimit: 30 },
   { id: 6, type: 'complex-calculation', category: '계산력', questionText: "사과(1000원) 2개, 우유(1500원) 1개.\n5000원을 냈다면 거스름돈은?", options: ['1000원', '1500원', '2000원', '2500원'], correctAnswer: '1500원', score: 10, timeLimit: 40 },
-  { id: 7, type: 'serial-subtraction', category: '집행기능', questionText: "100 - 7 - 7 - 7 = ?\n세 번째로 나올 숫자는?", options: ['86', '79', '93', '72'], correctAnswer: '86', score: 10, timeLimit: 25 },
+  { id: 7, type: 'serial-subtraction', category: '집행기능', questionText: "100 - 7 - 7 - 7 = ?\n문제의 답을 구하시오", options: ['86', '79', '93', '72'], correctAnswer: '79', score: 10, timeLimit: 25 },
   { id: 8, type: 'reaction-speed', category: '반응속도', questionText: "화면이 초록색으로 변하면\n빠르게 터치하세요!", correctAnswer: 'completed', score: 10, timeLimit: 10 },
   { id: 9, type: 'word-fluency', category: '언어유창성', questionText: "제시된 카테고리에 해당하는\n단어만 빠르게 선택하세요!", correctAnswer: 'completed', score: 10, timeLimit: 30 },
   { id: 10, type: 'multi-choice', category: '기억력', questionText: "아까 처음에 봤던\n그림 3개는 무엇이었나요?", options: ['🚂 기차', '🐶 강아지', '🌲 소나무', '🚲 자전거', '⚽ 축구공', '🎩 모자'], correctAnswer: ['🚂 기차', '🌲 소나무', '⚽ 축구공'], score: 20, timeLimit: 30 },
@@ -385,6 +385,7 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
   const [isDone, setIsDone] = useState(false);
   const [showFeedback, setShowFeedback] = useState<{word: string, isCorrect: boolean} | null>(null);
   const [showComplete, setShowComplete] = useState(false); // 모든 정답 완료 메시지
+  const [showCategoryIntro, setShowCategoryIntro] = useState(true); // 카테고리 소개 화면
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const totalScoreRef = useRef(0);
@@ -417,8 +418,16 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
   const [currentWords, setCurrentWords] = useState<string[]>([]);
 
   useEffect(() => {
-    // 게임 시작 시 첫 카테고리 단어 생성
+    // 카테고리 변경 시 소개 화면 표시
+    setShowCategoryIntro(true);
     generateWords();
+    
+    // 2초 후 소개 화면 숨기고 게임 시작
+    const timer = setTimeout(() => {
+      setShowCategoryIntro(false);
+    }, 2000);
+    
+    return () => clearTimeout(timer);
   }, [currentCategoryIndex]);
 
   const generateWords = () => {
@@ -585,6 +594,20 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
 
   return (
     <div className="relative w-full h-[500px] bg-gradient-to-b from-blue-50 to-indigo-50 rounded-3xl overflow-hidden border-4 border-indigo-200 select-none">
+      {/* 카테고리 소개 화면 - 각 챕터 시작 시 표시 */}
+      {showCategoryIntro && (
+        <div className="absolute inset-0 z-50 bg-gradient-to-br from-indigo-500 to-blue-600 flex flex-col items-center justify-center text-white">
+          <div className="text-8xl mb-6 animate-bounce">{currentCategory.icon}</div>
+          <div className="text-6xl font-black mb-4 text-center leading-tight">
+            <div>{currentCategory.name}을</div>
+            <div>찾으세요</div>
+          </div>
+          <div className="text-2xl font-bold text-indigo-100 mt-4">
+            {currentCategoryIndex + 1}번째 챕터
+          </div>
+        </div>
+      )}
+
       {/* 상단 정보창 - 컴팩트하게 */}
       <div className="absolute top-2 left-2 right-2 flex justify-between items-center z-20">
         <div className="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg shadow-lg border-2 border-indigo-200">
@@ -624,14 +647,17 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
         </div>
       </div>
 
-      {/* 안내 문구 */}
-      <div className="absolute top-28 left-4 right-4 z-10 text-center">
-        <p className="bg-yellow-100 border-2 border-yellow-400 text-yellow-800 px-3 py-1.5 rounded-lg text-xs font-bold">
-          "{currentCategory.name}"에 해당하는 단어만 빠르게 선택하세요!
-        </p>
-      </div>
+      {/* 안내 문구 - 더 크고 명확하게 */}
+      {!showCategoryIntro && (
+        <div className="absolute top-28 left-4 right-4 z-10 text-center">
+          <p className="bg-yellow-100 border-3 border-yellow-500 text-yellow-900 px-4 py-3 rounded-xl text-lg font-black shadow-lg">
+            <span className="text-2xl">{currentCategory.icon}</span> <span className="text-xl">{currentCategory.name}</span>에 해당하는 단어만 선택하세요!
+          </p>
+        </div>
+      )}
 
       {/* 단어 그리드 - 한 화면에 모두 보이도록 조정 */}
+      {!showCategoryIntro && (
       <div className="absolute top-40 left-4 right-4 bottom-4 flex items-center justify-center">
         <div className="grid grid-cols-3 grid-rows-4 gap-2 w-full h-full max-w-md">
           {currentWords.map((word, index) => (
@@ -653,6 +679,7 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
           ))}
         </div>
       </div>
+      )}
 
       {/* 피드백 표시 */}
       {showFeedback && (
