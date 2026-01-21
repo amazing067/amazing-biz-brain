@@ -7,6 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { 
+      userName,
       phoneNumber, 
       total, 
       grade, 
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     console.log('📧 [API] 요청 데이터:', {
+      userName,
       phoneNumber,
       total,
       grade,
@@ -116,6 +118,10 @@ export async function POST(request: NextRequest) {
           <div style="margin-top: 30px; background-color: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #2563EB;">
             <h2 style="color: #334155; margin-bottom: 15px; font-size: 20px; font-weight: bold;">📋 신청자 기본 정보</h2>
             <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px; background-color: #f1f5f9;">이름</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">${userName || '미입력'}</td>
+              </tr>
               <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px; background-color: #f1f5f9;">연락처</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">${phoneNumber}</td>
@@ -361,13 +367,13 @@ export async function POST(request: NextRequest) {
     console.log('📧 [API] 이메일 전송 시작...', {
       from: emailUser,
       to: recipientEmail,
-      subject: `[뇌 건강 검진] 신규 상담 신청 - ${phoneNumber}`,
+      subject: `[뇌 건강 검진] 신규 상담 신청 - ${userName || '이름미입력'} (${phoneNumber})`,
     });
 
     const mailResult = await transporter.sendMail({
       from: `"뇌 건강 검진 시스템" <${emailUser}>`,
       to: recipientEmail,
-      subject: `[뇌 건강 검진] 신규 상담 신청 - ${phoneNumber}`,
+      subject: `[뇌 건강 검진] 신규 상담 신청 - ${userName || '이름미입력'} (${phoneNumber})`,
       html: htmlContent,
     });
 

@@ -352,28 +352,49 @@ function ReverseNumberGame({ correctAnswer, onComplete }: { correctAnswer: numbe
 
 // [10] 다중 선택 게임
 function MultiChoiceGame({ options, onComplete }: { options: string[]; onComplete: (selected: string[]) => void }) {
+  console.log('🔍 [DEBUG] MultiChoiceGame 마운트:', { optionsLength: options?.length });
+  
   const [selected, setSelected] = useState<string[]>([]);
+  const onCompleteRef = useRef(onComplete);
+  
+  // onComplete ref 업데이트
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
   
   // 옵션이 없으면 빈 화면 반환
   if (!options || options.length === 0) {
+    console.log('🔍 [DEBUG] MultiChoiceGame: 옵션 없음');
     return <div className="text-center text-xl text-gray-500">옵션을 불러오는 중...</div>;
   }
   
   const handleSelect = (opt: string) => {
+    console.log('🔍 [DEBUG] MultiChoiceGame handleSelect:', { opt, selected });
     if (selected.includes(opt)) {
       // 이미 선택된 항목이면 제거
       setSelected(prev => prev.filter(item => item !== opt));
     } else {
       // 최대 3개까지 선택 가능
       if (selected.length < 3) {
-        setSelected(prev => [...prev, opt]);
+        setSelected(prev => {
+          const newSelected = [...prev, opt];
+          console.log('🔍 [DEBUG] MultiChoiceGame 선택 업데이트:', { newSelected, length: newSelected.length });
+          return newSelected;
+        });
       }
     }
   };
   
   const handleComplete = () => {
+    console.log('🔍 [DEBUG] MultiChoiceGame handleComplete 호출:', { selected, length: selected.length });
     if (selected.length === 3) {
-      setTimeout(() => onComplete(selected), 0);
+      console.log('🔍 [DEBUG] MultiChoiceGame onComplete 호출 예정:', selected);
+      setTimeout(() => {
+        console.log('🔍 [DEBUG] MultiChoiceGame onComplete 실행:', selected);
+        onCompleteRef.current(selected);
+      }, 0);
+    } else {
+      console.log('🔍 [DEBUG] MultiChoiceGame handleComplete 무시: 선택 개수 부족', selected.length);
     }
   };
   
@@ -859,33 +880,52 @@ function ReactionGame({ onComplete }: { onComplete: (ms: number) => void }) {
 }
 
 function WhackMoleGame({ timeLimit = 20, onComplete }: { timeLimit?: number; onComplete: (acc: number, cor: number, wro: number) => void }) {
+  console.log('🔍 [DEBUG] WhackMoleGame 마운트:', { timeLimit });
+  
   const [moles, setMoles] = useState<{ id: number; color: 'red' | 'blue'; position: number }[]>([]);
   const [score, setScore] = useState({ c: 0, w: 0, t: 0 });
   const [timeLeft, setTimeLeft] = useState(timeLimit);
   const [isDone, setIsDone] = useState(false);
   const scoreRef = useRef({ c: 0, w: 0, t: 0 });
+  const onCompleteRef = useRef(onComplete);
+
+  // onComplete ref 업데이트
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     scoreRef.current = score;
   }, [score]);
 
+  // 컴포넌트 마운트 시 한 번만 타이머 시작
   useEffect(() => {
+    console.log('🔍 [DEBUG] WhackMoleGame 타이머 시작:', { timeLimit, isDone });
     if (isDone) return;
+    
+    // timeLeft를 timeLimit으로 초기화
+    setTimeLeft(timeLimit);
+    
     const t = setInterval(() => {
       setTimeLeft(p => {
         if (p <= 1) {
+          console.log('🔍 [DEBUG] WhackMoleGame 시간 종료');
           clearInterval(t);
           setIsDone(true);
           const s = scoreRef.current;
           const acc = s.t > 0 ? (s.c / s.t) * 100 : 0;
-          setTimeout(() => onComplete(acc, s.c, s.w), 0);
+          console.log('🔍 [DEBUG] WhackMoleGame onComplete 호출 예정:', { acc, c: s.c, w: s.w });
+          setTimeout(() => onCompleteRef.current(acc, s.c, s.w), 0);
           return 0;
         }
         return p - 1;
       });
     }, 1000);
-    return () => clearInterval(t);
-  }, [isDone, onComplete]);
+    return () => {
+      console.log('🔍 [DEBUG] WhackMoleGame 타이머 정리');
+      clearInterval(t);
+    };
+  }, [isDone, timeLimit]);
 
   useEffect(() => {
     if (isDone) return;
@@ -1370,6 +1410,7 @@ export default function Home() {
   const [step, setStep] = useState(-1);
   const [answers, setAnswers] = useState<any>({});
   const [userProfile, setUserProfile] = useState({ age: 0 });
+  const [userName, setUserName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [showGuide, setShowGuide] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false); // ★ 건너뛰기 방지용 락
@@ -1403,6 +1444,7 @@ export default function Home() {
   useEffect(() => {
     if (step >= 0 && step < QUIZ_QUESTIONS.length) {
       const currentQ = QUIZ_QUESTIONS[step];
+      console.log('🔍 [DEBUG] 문제 변경:', { step, questionId: currentQ.id, questionType: currentQ.type });
       // family-care 타입은 가이드 오버레이를 표시하지 않음
       if (currentQ.type === 'family-care') {
         setShowGuide(false);
@@ -1413,18 +1455,43 @@ export default function Home() {
     }
   }, [step]);
 
-  const goNext = useCallback((answerValue: any) => {
-    if (isTransitioning) return; // 이미 넘어가는 중이면 무시
-    setIsTransitioning(true);
+  const stepRef = useRef(step);
+  const isTransitioningRef = useRef(isTransitioning);
+  
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
+  
+  useEffect(() => {
+    isTransitioningRef.current = isTransitioning;
+  }, [isTransitioning]);
 
-    const q = QUIZ_QUESTIONS[step];
+  const goNext = useCallback((answerValue: any) => {
+    const currentStep = stepRef.current;
+    const currentTransitioning = isTransitioningRef.current;
+    
+    console.log('🔍 [DEBUG] goNext 호출:', { step: currentStep, answerValue, isTransitioning: currentTransitioning });
+    
+    if (currentTransitioning) {
+      console.log('🔍 [DEBUG] goNext 무시됨: 이미 전환 중');
+      return; // 이미 넘어가는 중이면 무시
+    }
+    setIsTransitioning(true);
+    isTransitioningRef.current = true;
+
+    const q = QUIZ_QUESTIONS[currentStep];
+    console.log('🔍 [DEBUG] goNext 처리:', { questionId: q.id, questionType: q.type, answerValue, currentStep });
     setAnswers((prev: any) => ({ ...prev, [q.id]: answerValue }));
 
     // 약간의 딜레이 후 다음 문제로
     setTimeout(() => {
-      setStep(prev => prev + 1);
+      const nextStep = stepRef.current + 1;
+      console.log('🔍 [DEBUG] step 변경:', { from: stepRef.current, to: nextStep });
+      setStep(nextStep);
+      setIsTransitioning(false);
+      isTransitioningRef.current = false;
     }, 500);
-  }, [step, isTransitioning]);
+  }, []); // 의존성 배열 비움 - ref 사용으로 안정화
 
   // 인트로
   if (step === -1) {
@@ -1817,6 +1884,13 @@ export default function Home() {
 
             <div className="flex flex-col gap-2.5">
                 <input 
+                    type="text" 
+                    placeholder="이름 입력" 
+                    className="w-full p-4 rounded-xl bg-white text-gray-900 text-center font-bold text-lg shadow-lg border-2 border-white/50 outline-none focus:ring-4 focus:ring-yellow-400 focus:border-yellow-400" 
+                    value={userName} 
+                    onChange={(e) => setUserName(e.target.value)} 
+                />
+                <input 
                     type="tel" 
                     placeholder="휴대폰 번호 입력 (-없이)" 
                     className="w-full p-4 rounded-xl bg-white text-gray-900 text-center font-bold text-lg shadow-lg border-2 border-white/50 outline-none focus:ring-4 focus:ring-yellow-400 focus:border-yellow-400" 
@@ -1831,7 +1905,7 @@ export default function Home() {
                     </label>
                     <label className="flex items-start gap-2 text-[10px] text-gray-200 cursor-pointer">
                         <input type="checkbox" id="agree2" className="mt-0.5" />
-                        <span><span className="text-yellow-400 font-bold">[필수]</span> 보험 상품 안내 및 마케팅 활용 동의</span>
+                        <span><span className="text-blue-300 font-bold">[선택]</span> 보험 상품 안내 및 마케팅 활용 동의</span>
                     </label>
                 </div>
 
@@ -1840,13 +1914,13 @@ export default function Home() {
                         const chk1 = document.getElementById('agree1') as HTMLInputElement;
                         const chk2 = document.getElementById('agree2') as HTMLInputElement;
                         
-                        // 1차 검증: 필수 동의 체크 확인
-                        if(!chk1?.checked || !chk2?.checked) {
-                            const missing = [];
-                            if(!chk1?.checked) missing.push('개인정보 수집 및 이용 동의');
-                            if(!chk2?.checked) missing.push('보험 상품 안내 및 마케팅 활용 동의');
-                            
-                            return alert(`⚠️ 필수 동의 항목을 체크해주세요\n\n아래 항목에 체크 표시를 해주세요:\n\n${missing.map((m, i) => `[필수] ${m}`).join('\n')}\n\n모든 필수 항목에 동의하셔야\n보험 설계 서비스를 이용하실 수 있습니다.`);
+                        // 1차 검증: 필수 동의 체크 확인 (개인정보 수집 동의만 필수, 마케팅은 선택)
+                        if(!chk1?.checked) {
+                            return alert(`⚠️ 필수 동의 항목을 체크해주세요\n\n[필수] 개인정보 수집 및 이용 동의에 체크 표시를 해주세요.\n\n필수 항목에 동의하셔야\n보험 설계 서비스를 이용하실 수 있습니다.`);
+                        }
+                        
+                        if(!userName || userName.trim().length < 2) {
+                            return alert('👤 이름 확인\n\n성함을 정확히 입력해주세요.\n(최소 2자 이상)');
                         }
                         
                         if(phoneNumber.length < 10) {
@@ -1854,7 +1928,7 @@ export default function Home() {
                         }
                         
                         // 2차 최종 확인 (막 눌러서 실수 방지)
-                        const confirmMessage = `📞 전문 보험설계사 연락 안내\n\n입력하신 번호: ${phoneNumber}\n\n✅ 전문 보험설계사가 직접 연락드려\n   • 무료 보장분석\n   • 맞춤형 간병비 보험 설계안\n   을 무료로 제공해드립니다.\n\n⚠️ 연락을 받으시겠습니까?\n\n(취소하시면 신청이 되지 않습니다)`;
+                        const confirmMessage = `📞 전문 보험설계사 연락 안내\n\n입력하신 정보:\n• 이름: ${userName}\n• 연락처: ${phoneNumber}\n\n✅ 전문 보험설계사가 직접 연락드려\n   • 무료 보장분석\n   • 맞춤형 간병비 보험 설계안\n   을 무료로 제공해드립니다.\n\n⚠️ 연락을 받으시겠습니까?\n\n(취소하시면 신청이 되지 않습니다)`;
                         
                         if(!confirm(confirmMessage)) {
                             return; // 사용자가 취소하면 아무것도 하지 않음
@@ -1879,6 +1953,7 @@ export default function Home() {
                             });
 
                             console.log('📧 이메일 전송 요청 시작...', {
+                                userName,
                                 phoneNumber,
                                 total,
                                 grade,
@@ -1893,6 +1968,7 @@ export default function Home() {
                                     'Content-Type': 'application/json',
                                 },
                                 body: JSON.stringify({
+                                    userName,
                                     phoneNumber,
                                     total,
                                     grade,
@@ -1923,7 +1999,7 @@ export default function Home() {
                             console.log('📧 API 응답 데이터:', result);
                             
                             if (result.success) {
-                                alert(`✅ 신청이 완료되었습니다!\n\n📱 ${phoneNumber}\n\n📋 처리 안내:\n• 간병비 예상 견적서와 분석 자료를\n  문자로 보내드립니다\n• 전문 보험설계사가 1~2일 내\n  순차적으로 연락드립니다\n• 연락이 어려우시면 나중에\n  다시 신청해주세요\n\n감사합니다! 🙏`);
+                                alert(`✅ 신청이 완료되었습니다!\n\n👤 ${userName}님\n📱 ${phoneNumber}\n\n📋 처리 안내:\n• 간병비 예상 견적서와 분석 자료를\n  문자로 보내드립니다\n• 전문 보험설계사가 1~2일 내\n  순차적으로 연락드립니다\n• 연락이 어려우시면 나중에\n  다시 신청해주세요\n\n감사합니다! 🙏`);
                             } else {
                                 // 서버에서 반환한 에러 메시지 표시
                                 const errorMsg = result.error || '알 수 없는 오류';
@@ -1950,12 +2026,16 @@ export default function Home() {
   }
 
   const q = QUIZ_QUESTIONS[step];
+  console.log('🔍 [DEBUG] 문제 렌더링:', { step, questionId: q?.id, questionType: q?.type, showGuide });
 
   return (
     <div className={`h-dvh bg-white flex flex-col max-w-md mx-auto shadow-2xl relative ${step >= QUIZ_QUESTIONS.length ? 'overflow-y-auto' : 'overflow-hidden'}`}>
       {/* 1. 가이드 오버레이 */}
       {showGuide && (
-        <GuideOverlay question={q} onStart={() => setShowGuide(false)} currentNum={q.id} totalNum={QUIZ_QUESTIONS.length} />
+        <GuideOverlay question={q} onStart={() => {
+          console.log('🔍 [DEBUG] GuideOverlay 시작 버튼 클릭:', { step, questionId: q.id });
+          setShowGuide(false);
+        }} currentNum={q.id} totalNum={QUIZ_QUESTIONS.length} />
       )}
 
       {/* 2. 상단 진행바 */}
@@ -2065,11 +2145,21 @@ export default function Home() {
                 case 'reverse-number-input': return <ReverseNumberGame correctAnswer={q.correctAnswer} onComplete={goNext} />;
                 case 'reaction-speed': return <ReactionGame onComplete={goNext} />;
                 case 'word-fluency': return <WordFluencyGame onComplete={() => goNext('done')} />;
-                case 'whack-a-mole': return <WhackMoleGame timeLimit={q.timeLimit || 20} onComplete={(acc, c, w) => goNext({acc, c, wro: w})} />;
+                case 'whack-a-mole': 
+                  console.log('🔍 [DEBUG] 12번 문제 렌더링:', { step, questionId: q.id, timeLimit: q.timeLimit });
+                  return <WhackMoleGame timeLimit={q.timeLimit || 20} onComplete={(acc, c, w) => {
+                    console.log('🔍 [DEBUG] WhackMoleGame onComplete 호출:', { acc, c, w });
+                    goNext({acc, c, wro: w});
+                  }} />;
                 case 'card-match': return <CardGame onComplete={() => goNext('done')} />;
                 case 'schulte-table': return <SchulteTableGame onComplete={(t) => goNext(t)} />;
                 case 'pattern-logic': return <PatternLogicGame onComplete={() => goNext('done')} />;
-                case 'multi-choice': return <MultiChoiceGame options={q.options || []} onComplete={(selected) => goNext(selected)} />;
+                case 'multi-choice': 
+                  console.log('🔍 [DEBUG] 10번 문제 렌더링:', { step, questionId: q.id, options: q.options });
+                  return <MultiChoiceGame options={q.options || []} onComplete={(selected) => {
+                    console.log('🔍 [DEBUG] MultiChoiceGame onComplete 콜백:', { selected });
+                    goNext(selected);
+                  }} />;
                 
                 case 'family-care':
                     return (
