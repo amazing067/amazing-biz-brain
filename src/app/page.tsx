@@ -24,7 +24,7 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   { id: 3, type: 'stroop', category: '억제능력', questionText: "글자의 내용은 무시하고\n[글자 색깔]을 고르세요!", options: ['빨강', '파랑', '노랑', '검정'], correctAnswer: '파랑', score: 10, timeLimit: 15 },
   { id: 4, type: 'symbol-count', category: '주의력', questionText: "아래 기호들 중에서\n♣️(세잎클로버)는 몇 개일까요?", options: ['5개', '6개', '7개', '8개'], correctAnswer: '7개', score: 10, timeLimit: 10 },
   { id: 5, type: 'reverse-number-input', category: '작업기억', questionText: "숫자를 기억했다가\n거꾸로 입력해주세요.", correctAnswer: [7,3,8,4,9], score: 10, timeLimit: 30 },
-  { id: 6, type: 'complex-calculation', category: '계산력', questionText: "사과(1000원) 2개, 우유(1500원) 1개.\n5000원을 냈다면 거스름돈은?", options: ['1000원', '1500원', '2000원', '2500원'], correctAnswer: '1500원', score: 10, timeLimit: 40 },
+  { id: 6, type: 'complex-calculation', category: '계산력', questionText: "사과(1000원) 2개\n우유(1500원) 1개\n5000원을 냈다면 거스름돈은?", options: ['1000원', '1500원', '2000원', '2500원'], correctAnswer: '1500원', score: 10, timeLimit: 40 },
   { id: 7, type: 'serial-subtraction', category: '집행기능', questionText: "100 - 7 - 7 - 7 = ?\n문제의 답을 구하시오", options: ['86', '79', '93', '72'], correctAnswer: '79', score: 10, timeLimit: 25 },
   { id: 8, type: 'reaction-speed', category: '반응속도', questionText: "화면이 초록색으로 변하면\n빠르게 터치하세요!", correctAnswer: 'completed', score: 10, timeLimit: 10 },
   { id: 9, type: 'word-fluency', category: '언어유창성', questionText: "제시된 카테고리에 해당하는\n단어만 빠르게 선택하세요!", correctAnswer: 'completed', score: 10, timeLimit: 30 },
@@ -94,6 +94,41 @@ function GuideOverlay({ question, onStart, currentNum, totalNum }: { question: Q
           <p className="text-xl text-gray-600 whitespace-pre-line mb-10 leading-relaxed font-medium">
             시작하기 버튼을 누르면{'\n'}문제가 나타납니다
           </p>
+        ) : question.type === 'whack-a-mole' ? (
+          <div className="mb-10 space-y-6">
+            <p className="text-xl text-gray-600 whitespace-pre-line leading-relaxed font-medium mb-6">
+              {question.questionText}
+            </p>
+            {/* 시각적 설명 */}
+            <div className="flex flex-col items-center gap-4">
+              {/* 빨간 곰돌이 - 클릭 */}
+              <div className="flex items-center gap-3 bg-red-50 p-4 rounded-2xl border-2 border-red-200 w-full">
+                <div className="relative">
+                  <span className="text-5xl">🐻</span>
+                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">✓</span>
+                  </div>
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="text-lg font-bold text-red-600">빨간 곰돌이</div>
+                  <div className="text-base text-gray-700">클릭</div>
+                </div>
+              </div>
+              {/* 파란 곰돌이 - 클릭금지 */}
+              <div className="flex items-center gap-3 bg-blue-50 p-4 rounded-2xl border-2 border-blue-200 w-full">
+                <div className="relative">
+                  <span className="text-5xl">🐻</span>
+                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">✗</span>
+                  </div>
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="text-lg font-bold text-blue-600">파란 곰돌이</div>
+                  <div className="text-base text-gray-700">클릭금지</div>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
           <p className="text-xl text-gray-600 whitespace-pre-line mb-10 leading-relaxed font-medium">
             {question.questionText}
@@ -198,7 +233,7 @@ function SymbolCountGame({ onAnswer }: { onAnswer: (val: string) => void }) {
   ];
   
   return (
-    <div className="w-full flex flex-col items-center space-y-6">
+    <div className="w-full flex flex-col items-center space-y-4">
       <div className="bg-white border-2 border-gray-200 p-4 rounded-3xl grid grid-cols-5 gap-2 w-full shadow-sm">
         {symbols.map((s, i) => (
           <div 
@@ -217,9 +252,9 @@ function SymbolCountGame({ onAnswer }: { onAnswer: (val: string) => void }) {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-4 w-full">
+      <div className="grid grid-cols-2 gap-3 w-full">
         {['5개', '6개', '7개', '8개'].map(opt => (
-          <button key={opt} onClick={() => onAnswer(opt)} className="bg-white border-2 border-gray-300 py-6 rounded-2xl text-2xl font-bold active:bg-gray-200">{opt}</button>
+          <button key={opt} onClick={() => onAnswer(opt)} className="bg-white border-2 border-gray-300 py-4 rounded-xl text-xl font-bold active:bg-gray-200">{opt}</button>
         ))}
       </div>
     </div>
@@ -289,16 +324,27 @@ function ReverseNumberGame({ correctAnswer, onComplete }: { correctAnswer: numbe
   }
 
   return (
-    <div className="w-full space-y-4">
-      <div className="bg-gray-100 py-8 rounded-2xl text-center text-4xl font-bold tracking-widest min-h-[100px] flex items-center justify-center">
-        {userInputs.length === 0 ? <span className="text-gray-400 text-xl">숫자를 누르세요</span> : userInputs.join(' - ')}
+    <div className="w-full space-y-3">
+      <div className="bg-gray-100 py-6 rounded-2xl text-center text-3xl font-bold tracking-widest min-h-[80px] flex items-center justify-center">
+        {userInputs.length === 0 ? <span className="text-gray-400 text-lg">숫자를 누르세요</span> : userInputs.join(' - ')}
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        {[1,2,3,4,5,6,7,8,9,0].map(num => (
-          <button key={num} onClick={() => { if(userInputs.length < 5) setUserInputs([...userInputs, num]) }} className="py-5 bg-white border-2 border-gray-300 rounded-xl text-3xl font-bold active:bg-gray-200">{num}</button>
+      <div className="grid grid-cols-3 gap-2">
+        {/* 첫 번째 줄: 1, 2, 3 */}
+        {[1, 2, 3].map(num => (
+          <button key={num} onClick={() => { if(userInputs.length < 5) setUserInputs([...userInputs, num]) }} className="py-4 bg-white border-2 border-gray-300 rounded-xl text-2xl font-bold active:bg-gray-200">{num}</button>
         ))}
-        <button onClick={() => setUserInputs([])} className="col-span-1 py-5 bg-red-100 text-red-600 rounded-xl font-bold">지우기</button>
-        <button onClick={() => onComplete(userInputs)} className="col-span-2 py-5 bg-green-600 text-white rounded-xl font-bold text-xl">확인</button>
+        {/* 두 번째 줄: 4, 5, 6 */}
+        {[4, 5, 6].map(num => (
+          <button key={num} onClick={() => { if(userInputs.length < 5) setUserInputs([...userInputs, num]) }} className="py-4 bg-white border-2 border-gray-300 rounded-xl text-2xl font-bold active:bg-gray-200">{num}</button>
+        ))}
+        {/* 세 번째 줄: 7, 8, 9 */}
+        {[7, 8, 9].map(num => (
+          <button key={num} onClick={() => { if(userInputs.length < 5) setUserInputs([...userInputs, num]) }} className="py-4 bg-white border-2 border-gray-300 rounded-xl text-2xl font-bold active:bg-gray-200">{num}</button>
+        ))}
+        {/* 네 번째 줄: 지우기, 0, 확인 */}
+        <button onClick={() => setUserInputs([])} className="py-4 bg-red-100 text-red-600 rounded-xl font-bold text-lg active:bg-red-200">지우기</button>
+        <button onClick={() => { if(userInputs.length < 5) setUserInputs([...userInputs, 0]) }} className="py-4 bg-white border-2 border-gray-300 rounded-xl text-2xl font-bold active:bg-gray-200">0</button>
+        <button onClick={() => onComplete(userInputs)} className="py-4 bg-green-600 text-white rounded-xl font-bold text-lg active:bg-green-700">확인</button>
       </div>
     </div>
   );
@@ -490,7 +536,7 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
         setScore(totalScoreRef.current);
         setSelectedWords(new Set()); // 새 라운드 시작
         selectedWordsRef.current = new Set(); // ref도 초기화
-      }, 2000); // 완료 메시지 2초 표시
+      }, 4000); // 완료 메시지 4초 표시 (다음 챕터로 넘어갈 때까지 충분한 시간)
     } else {
       // 모든 카테고리 완료
       setShowComplete(true);
@@ -499,7 +545,7 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
       setTimeout(() => {
         setShowComplete(false);
         onComplete();
-      }, 2000); // 완료 메시지 2초 표시
+      }, 4000); // 완료 메시지 4초 표시 (게임 완료까지 충분한 시간)
     }
   }, [onComplete]);
 
@@ -572,10 +618,14 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
       navigator.vibrate(isCorrect ? 50 : 100);
     }
 
-    // 정답이면 점수 증가
+    // 정답이면 점수 증가, 오답이면 감점
     if (isCorrect) {
       setScore(prev => prev + 1);
       totalScoreRef.current += 1;
+    } else {
+      // 오답 선택 시 -1점 감점
+      setScore(prev => Math.max(0, prev - 1));
+      totalScoreRef.current = Math.max(0, totalScoreRef.current - 1);
     }
   };
 
@@ -647,18 +697,18 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
         </div>
       </div>
 
-      {/* 안내 문구 - 더 크고 명확하게 */}
+      {/* 안내 문구 - 더 크고 명확하게 (모바일 최적화) */}
       {!showCategoryIntro && (
-        <div className="absolute top-20 left-4 right-4 z-10 text-center">
-          <p className="bg-yellow-100 border-3 border-yellow-500 text-yellow-900 px-4 py-2.5 rounded-xl text-lg font-black shadow-lg">
-            <span className="text-2xl">{currentCategory.icon}</span> <span className="text-xl">{currentCategory.name}</span>에 해당하는 단어만 선택하세요!
+        <div className="absolute top-20 left-2 right-2 z-10 text-center px-2">
+          <p className="bg-yellow-100 border-3 border-yellow-500 text-yellow-900 px-3 py-2 rounded-xl text-sm sm:text-lg font-black shadow-lg leading-tight">
+            <span className="text-xl sm:text-2xl">{currentCategory.icon}</span> <span className="text-base sm:text-xl">{currentCategory.name}</span>에 해당하는 단어만 선택하세요!
           </p>
         </div>
       )}
 
-      {/* 단어 그리드 - 한 화면에 모두 보이도록 조정 */}
+      {/* 단어 그리드 - 한 화면에 모두 보이도록 조정 (모바일 최적화) */}
       {!showCategoryIntro && (
-      <div className="absolute top-36 left-4 right-4 bottom-4 flex items-center justify-center">
+      <div className="absolute top-32 sm:top-36 left-2 right-2 bottom-2 sm:bottom-4 flex items-center justify-center">
         <div className="grid grid-cols-3 grid-rows-4 gap-2 w-full h-full max-w-md">
           {currentWords.map((word, index) => (
             <button
@@ -698,7 +748,7 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
         </div>
       )}
 
-      {/* 모든 정답 완료 메시지 */}
+      {/* 모든 정답 완료 메시지 - 더 오래 표시되도록 수정 */}
       {showComplete && (
         <div 
           className="absolute z-40 bg-green-500 text-white px-8 py-6 rounded-2xl shadow-2xl pointer-events-none"
@@ -706,11 +756,11 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
             left: '50%',
             top: '50%',
             transform: 'translate(-50%, -50%)',
-            animation: 'popUp 0.8s ease-out forwards'
+            animation: 'fadeInStay 0.5s ease-in forwards'
           }}
         >
           <div className="text-center">
-            <div className="text-5xl mb-2">🎉</div>
+            <div className="text-5xl mb-2 animate-bounce">🎉</div>
             <div className="text-2xl font-black mb-1">모든 정답을 맞췄습니다!</div>
             {currentCategoryIndex < categories.length - 1 ? (
               <div className="text-lg font-bold mt-2">
@@ -727,6 +777,11 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
 
       {/* 애니메이션 스타일 */}
       <style jsx>{`
+        @keyframes fadeInStay {
+          0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+          50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
         @keyframes popUp {
           0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
           50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
@@ -779,16 +834,16 @@ function ReactionGame({ onComplete }: { onComplete: (ms: number) => void }) {
   
   return (
     <div onPointerDown={handleClick}
-         className={`w-full h-[400px] rounded-3xl flex flex-col items-center justify-center text-4xl font-black text-white shadow-xl transition-colors ${state==='result'?'bg-blue-500':state==='go'?'bg-green-500':state==='ready'?'bg-yellow-400':'bg-red-500'}`}>
+         className={`w-full h-[400px] rounded-3xl flex flex-col items-center justify-center text-3xl font-black text-white shadow-xl transition-colors px-4 ${state==='result'?'bg-blue-500':state==='go'?'bg-green-500':state==='ready'?'bg-yellow-400':'bg-red-500'}`}>
         {state==='result' ? (
           <>
-            <div className="text-5xl mb-4">반응 시간</div>
-            <div className="text-8xl font-black animate-pulse">{(reactionTime / 1000).toFixed(3)}초</div>
-            <div className="text-2xl mt-4 opacity-80">{(reactionTime)}ms</div>
+            <div className="text-2xl sm:text-3xl mb-2">반응 시간</div>
+            <div className="text-5xl sm:text-6xl font-black animate-pulse mb-2">{(reactionTime / 1000).toFixed(3)}초</div>
+            <div className="text-lg sm:text-xl mt-2 opacity-80">{(reactionTime)}ms</div>
             {stats && (
-              <div className="mt-6 text-center">
-                <div className="text-3xl font-bold mb-2">상위 {stats.percentile}%</div>
-                <div className="text-xl opacity-90">{stats.message}</div>
+              <div className="mt-4 text-center">
+                <div className="text-xl sm:text-2xl font-bold mb-1">상위 {stats.percentile}%</div>
+                <div className="text-base sm:text-lg opacity-90 px-2">{stats.message}</div>
               </div>
             )}
           </>
@@ -1027,12 +1082,12 @@ function CardGame({ onComplete }: { onComplete: () => void }) {
         }, [])
     );
 
-    // memorize phase에서 3초 후 play phase로 전환
+    // memorize phase에서 5초 후 play phase로 전환
     useEffect(() => {
         if (phase === 'memorize') {
             const t = setTimeout(() => {
                 setPhase('play');
-            }, 3000);
+            }, 5000);
             return () => clearTimeout(t);
         }
     }, [phase]);
@@ -1084,7 +1139,7 @@ function CardGame({ onComplete }: { onComplete: () => void }) {
     if (phase === 'memorize') {
         return (
             <div className="text-center text-2xl font-bold p-6 animate-pulse">
-                3초 동안<br/>위치를 기억하세요!
+                5초 동안<br/>위치를 기억하세요!
                 <div className="grid grid-cols-4 gap-3 w-full max-w-[500px] mx-auto mt-6">
                     {cards.current.map((c, i) => (
                         <div key={i} className="h-28 text-7xl bg-white border-4 border-gray-300 rounded-2xl flex items-center justify-center shadow-lg">
@@ -1712,8 +1767,8 @@ export default function Home() {
             </div>
 
             {/* 경고 멘트 */}
-            <div className="mt-5 text-center p-4 bg-gray-100 rounded-xl border border-gray-300">
-                <p className="text-sm font-bold text-gray-800 whitespace-pre-line leading-relaxed">{familyWarning}</p>
+            <div className="mt-5 text-center p-5 bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl border-3 border-red-400 shadow-lg">
+                <p className="text-lg sm:text-xl font-bold text-red-700 whitespace-pre-line leading-relaxed">{familyWarning}</p>
             </div>
             </div>
         </div>
