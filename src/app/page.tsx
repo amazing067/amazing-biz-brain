@@ -858,10 +858,10 @@ function ReactionGame({ onComplete }: { onComplete: (ms: number) => void }) {
   );
 }
 
-function WhackMoleGame({ onComplete }: { onComplete: (acc: number, cor: number, wro: number) => void }) {
+function WhackMoleGame({ timeLimit = 20, onComplete }: { timeLimit?: number; onComplete: (acc: number, cor: number, wro: number) => void }) {
   const [moles, setMoles] = useState<{ id: number; color: 'red' | 'blue'; position: number }[]>([]);
   const [score, setScore] = useState({ c: 0, w: 0, t: 0 });
-  const [timeLeft, setTimeLeft] = useState(15);
+  const [timeLeft, setTimeLeft] = useState(timeLimit);
   const [isDone, setIsDone] = useState(false);
   const scoreRef = useRef({ c: 0, w: 0, t: 0 });
 
@@ -2065,7 +2065,7 @@ export default function Home() {
                 case 'reverse-number-input': return <ReverseNumberGame correctAnswer={q.correctAnswer} onComplete={goNext} />;
                 case 'reaction-speed': return <ReactionGame onComplete={goNext} />;
                 case 'word-fluency': return <WordFluencyGame onComplete={() => goNext('done')} />;
-                case 'whack-a-mole': return <WhackMoleGame onComplete={(acc, c, w) => goNext({acc, c, wro: w})} />;
+                case 'whack-a-mole': return <WhackMoleGame timeLimit={q.timeLimit || 20} onComplete={(acc, c, w) => goNext({acc, c, wro: w})} />;
                 case 'card-match': return <CardGame onComplete={() => goNext('done')} />;
                 case 'schulte-table': return <SchulteTableGame onComplete={(t) => goNext(t)} />;
                 case 'pattern-logic': return <PatternLogicGame onComplete={() => goNext('done')} />;
