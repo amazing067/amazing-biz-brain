@@ -8,7 +8,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { 
       userName,
-      phoneNumber, 
+      phoneNumber,
+      birthYear,
+      gender,
+      region,
+      age,
       total, 
       grade, 
       status,
@@ -23,8 +27,10 @@ export async function POST(request: NextRequest) {
       futureDetails,
       categoryScores,
       familyWarning,
-      agree1, 
-      agree2 
+      agree0, // 이용약관 동의
+      agree1, // 개인정보 수집 및 이용 동의
+      agree2, // 마케팅 활용 동의 (선택)
+      agree3  // 개인정보 제3자 제공 동의 (카카오톡)
     } = body;
 
     console.log('📧 [API] 요청 데이터:', {
@@ -125,6 +131,18 @@ export async function POST(request: NextRequest) {
               <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px; background-color: #f1f5f9;">연락처</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">${phoneNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px; background-color: #f1f5f9;">출생년도</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">${birthYear || '미입력'}년 ${age ? `(만 ${age - 1}세)` : ''}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px; background-color: #f1f5f9;">성별</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">${gender || '미입력'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px; background-color: #f1f5f9;">사는 지역</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">${region || '미입력'}</td>
               </tr>
               <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; background-color: #f1f5f9;">검진 총점</td>
@@ -328,9 +346,21 @@ export async function POST(request: NextRequest) {
             <h2 style="color: #334155; margin-bottom: 20px; font-size: 20px; font-weight: bold;">✅ 동의 사항</h2>
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 200px;">개인정보 수집 및 이용 동의</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 200px;">이용약관 동의</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; color: ${agree0 ? '#16a34a' : '#dc2626'}; font-weight: bold; font-size: 16px;">
+                  ${agree0 ? '✅ 동의' : '❌ 미동의'}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">개인정보 수집 및 이용 동의</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; color: ${agree1 ? '#16a34a' : '#dc2626'}; font-weight: bold; font-size: 16px;">
                   ${agree1 ? '✅ 동의' : '❌ 미동의'}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">개인정보 제3자 제공 동의 (카카오톡)</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; color: ${agree3 ? '#16a34a' : '#dc2626'}; font-weight: bold; font-size: 16px;">
+                  ${agree3 ? '✅ 동의' : '❌ 미동의'}
                 </td>
               </tr>
               <tr>

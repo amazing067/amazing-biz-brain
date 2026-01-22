@@ -24,14 +24,14 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   { id: 3, type: 'stroop', category: '억제능력', questionText: "글자의 내용은 무시하고\n[글자 색깔]을 고르세요!", options: ['빨강', '파랑', '노랑', '검정'], correctAnswer: '파랑', score: 10, timeLimit: 15 },
   { id: 4, type: 'symbol-count', category: '주의력', questionText: "아래 기호들 중에서\n♣️(세잎클로버)는 몇 개일까요?", options: ['5개', '6개', '7개', '8개'], correctAnswer: '7개', score: 10, timeLimit: 10 },
   { id: 5, type: 'reverse-number-input', category: '작업기억', questionText: "숫자를 기억했다가\n거꾸로 입력해주세요.", correctAnswer: [7,3,8,4,9], score: 10, timeLimit: 30 },
-  { id: 6, type: 'complex-calculation', category: '계산력', questionText: "사과(1000원) 2개\n우유(1500원) 1개\n5000원을 냈다면 거스름돈은?", options: ['1000원', '1500원', '2000원', '2500원'], correctAnswer: '1500원', score: 10, timeLimit: 40 },
-  { id: 7, type: 'serial-subtraction', category: '집행기능', questionText: "100 - 7 - 7 - 7 = ?\n문제의 답을 구하시오", options: ['86', '79', '93', '72'], correctAnswer: '79', score: 10, timeLimit: 25 },
+  { id: 6, type: 'complex-calculation', category: '계산력', questionText: "사과(1000원) 2개를 샀고\n우유(1500원) 1개를 샀습니다\n5000원을 냈다면 거스름돈은?", options: ['1000원', '1500원', '2000원', '2500원'], correctAnswer: '1500원', score: 10, timeLimit: 40 },
+  { id: 7, type: 'serial-subtraction', category: '집행기능', questionText: "100 - 7 - 7 - 7 = ?\n답을 구하세요", options: ['86', '79', '93', '72'], correctAnswer: '79', score: 10, timeLimit: 25 },
   { id: 8, type: 'reaction-speed', category: '반응속도', questionText: "화면이 초록색으로 변하면\n빠르게 터치하세요!", correctAnswer: 'completed', score: 10, timeLimit: 10 },
   { id: 9, type: 'word-fluency', category: '언어유창성', questionText: "제시된 카테고리에 해당하는\n단어만 빠르게 선택하세요!", correctAnswer: 'completed', score: 10, timeLimit: 30 },
   { id: 10, type: 'multi-choice', category: '기억력', questionText: "아까 처음에 봤던\n그림 3개는 무엇이었나요?", options: ['🚂 기차', '🐶 강아지', '🌲 소나무', '🚲 자전거', '⚽ 축구공', '🎩 모자'], correctAnswer: ['🚂 기차', '🌲 소나무', '⚽ 축구공'], score: 20, timeLimit: 30 },
   { id: 11, type: 'card-match', category: '시공간', questionText: "카드의 위치를 기억해서\n짝을 맞춰보세요.", correctAnswer: 'completed', score: 10, timeLimit: 40 },
   { id: 12, type: 'whack-a-mole', category: '주의력', questionText: "빨간 곰돌이는 잡고,\n파란 곰돌이는 피하세요!", correctAnswer: 'completed', score: 10, timeLimit: 20 },
-  { id: 13, type: 'schulte-table', category: '시각탐색', questionText: "1부터 16까지 숫자를\n순서대로 찾으세요.", correctAnswer: 'completed', score: 10, timeLimit: 40 },
+  { id: 13, type: 'schulte-table', category: '시각탐색', questionText: "1부터 16까지 숫자를\n순서대로 찾으세요.", correctAnswer: 'completed', score: 10, timeLimit: 30 },
   { id: 14, type: 'pattern-logic', category: '시각추론', questionText: "규칙을 찾아보세요.\n빈칸에 들어갈 도형은?", correctAnswer: '▲', score: 10, timeLimit: 20 },
   { id: 15, type: 'family-care', category: '판단력', questionText: "만약 10년 뒤, 돌봄이 필요하다면\n누가 도와줄 수 있나요?", options: ['배우자', '자녀', '간병인/요양병원', '잘 모르겠다'], correctAnswer: '', score: 1, timeLimit: 0 }
 ];
@@ -971,11 +971,11 @@ function WhackMoleGame({ timeLimit = 20, onComplete }: { timeLimit?: number; onC
   );
 }
 
-function SchulteTableGame({ onComplete }: { onComplete: (time: number) => void }) {
+function SchulteTableGame({ timeLimit, onComplete }: { timeLimit?: number; onComplete: (time: number) => void }) {
   const [nums] = useState(() => Array.from({ length: 16 }, (_, i) => i + 1).sort(() => Math.random() - 0.5));
   const [curr, setCurr] = useState(1);
   const [start] = useState(Date.now());
-  const [timeLeft, setTimeLeft] = useState(40);
+  const [timeLeft, setTimeLeft] = useState(timeLimit || 40);
   const [done, setDone] = useState(false);
   const onCompleteRef = useRef(onComplete);
   const startRef = useRef(start);
@@ -1117,17 +1117,17 @@ function CardGame({ onComplete }: { onComplete: () => void }) {
     // 카드는 컴포넌트 마운트 시 한 번만 생성하고 고정
     const cards = useRef<string[]>(
         useMemo(() => {
-            const icons = ['🍎', '🍌', '🍇', '🍊', '🍉'];
+            const icons = ['🍎', '🍌', '🍇', '🍊', '🍉', '🍓'];
             return [...icons, ...icons].sort(() => Math.random() - 0.5);
         }, [])
     );
 
-    // memorize phase에서 5초 후 play phase로 전환
+    // memorize phase에서 10초 후 play phase로 전환
     useEffect(() => {
         if (phase === 'memorize') {
             const t = setTimeout(() => {
                 setPhase('play');
-            }, 5000);
+            }, 10000);
             return () => clearTimeout(t);
         }
     }, [phase]);
@@ -1152,7 +1152,7 @@ function CardGame({ onComplete }: { onComplete: () => void }) {
     }, [phase, isDone, onComplete]);
 
     useEffect(() => {
-        if (solved.length === 10 && !isDone) {
+        if (solved.length === 12 && !isDone) {
             setIsDone(true);
             if (timerRef.current) clearInterval(timerRef.current);
             setTimeout(() => onComplete(), 0);
@@ -1179,7 +1179,7 @@ function CardGame({ onComplete }: { onComplete: () => void }) {
     if (phase === 'memorize') {
         return (
             <div className="text-center text-2xl font-bold p-6 animate-pulse">
-                5초 동안<br/>위치를 기억하세요!
+                10초 동안<br/>위치를 기억하세요!
                 <div className="grid grid-cols-4 gap-3 w-full max-w-[500px] mx-auto mt-6">
                     {cards.current.map((c, i) => (
                         <div key={i} className="h-28 text-7xl bg-white border-4 border-gray-300 rounded-2xl flex items-center justify-center shadow-lg">
@@ -1194,7 +1194,7 @@ function CardGame({ onComplete }: { onComplete: () => void }) {
     return (
         <div className="w-full space-y-4">
             <div className="flex justify-between px-4 font-bold text-xl">
-                <span>짝: {solved.length / 2}/5</span>
+                <span>짝: {solved.length / 2}/6</span>
                 <span className="text-red-500">⏱ {timeLeft}초</span>
             </div>
             <div className="grid grid-cols-4 gap-3 w-full max-w-[500px] mx-auto">
@@ -1407,18 +1407,31 @@ const calculateFinancials = (score: number) => {
 // 4. 메인 페이지 로직 (Home)
 // ============================================================================
 export default function Home() {
-  const [step, setStep] = useState(-1);
+  const [step, setStep] = useState(-2); // -2: 인트로, -1: 사용자 정보 입력, 0~: 문제
+  const [introSlide, setIntroSlide] = useState(0); // 인트로 슬라이드 인덱스 (0, 1, 2, 3)
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState(true); // 자동 진행 활성화
+  const [countUpValue, setCountUpValue] = useState(0); // 카운트업 애니메이션 값
+  const [emojiVisible, setEmojiVisible] = useState(false); // 이모지 페이드인 상태
+  const [contentVisible, setContentVisible] = useState(false); // 콘텐츠 페이드인 상태
   const [answers, setAnswers] = useState<any>({});
-  const [userProfile, setUserProfile] = useState({ age: 0 });
+  const [userProfile, setUserProfile] = useState({ 
+    age: 0, 
+    birthYear: '', 
+    gender: '', 
+    region: '' 
+  });
   const [userName, setUserName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [showGuide, setShowGuide] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false); // ★ 건너뛰기 방지용 락
+  const [showTermsModal, setShowTermsModal] = useState<{type: 'terms' | 'privacy' | 'thirdparty' | null}>({type: null});
 
-  // 테스트 모드: URL 파라미터로 결과 화면 바로 보기
+  // 테스트 모드: URL 파라미터로 결과 화면 또는 특정 문제 바로 보기
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      
+      // 결과 화면 테스트
       if (params.get('test') === 'result') {
         // 테스트용 더미 답변 설정
         const testAnswers: any = {};
@@ -1434,8 +1447,35 @@ export default function Home() {
           else testAnswers[q.id] = q.correctAnswer;
         });
         setAnswers(testAnswers);
-        setUserProfile({ age: 65 });
+        setUserProfile({ age: 65, birthYear: '1959', gender: '남성', region: '서울' });
         setStep(QUIZ_QUESTIONS.length); // 결과 화면으로 바로 이동
+      }
+      
+      // 특정 문제 번호로 바로 이동 (예: ?test=11)
+      const testQuestionId = params.get('test');
+      if (testQuestionId && !isNaN(Number(testQuestionId))) {
+        const questionId = Number(testQuestionId);
+        const questionIndex = QUIZ_QUESTIONS.findIndex(q => q.id === questionId);
+        
+        if (questionIndex !== -1) {
+          // 이전 문제들의 답변을 더미로 설정 (가이드 오버레이 건너뛰기용)
+          const testAnswers: any = {};
+          for (let i = 0; i < questionIndex; i++) {
+            const q = QUIZ_QUESTIONS[i];
+            if (q.type === 'memory-input') testAnswers[q.id] = 'viewed';
+            else if (q.type === 'reaction-speed') testAnswers[q.id] = 300;
+            else if (q.type === 'schulte-table') testAnswers[q.id] = 15;
+            else if (q.type === 'whack-a-mole') testAnswers[q.id] = { acc: 80, wro: 2 };
+            else if (q.type === 'reverse-number-input') testAnswers[q.id] = [9,4,8,3,7];
+            else if (q.type === 'multi-choice') testAnswers[q.id] = q.correctAnswer;
+            else if (['card-match','word-fluency','pattern-logic'].includes(q.type)) testAnswers[q.id] = 'done';
+            else if (q.type === 'family-care') testAnswers[q.id] = '자녀';
+            else testAnswers[q.id] = q.correctAnswer;
+          }
+          setAnswers(testAnswers);
+          setUserProfile({ age: 65, birthYear: '1959', gender: '남성', region: '서울' });
+          setStep(questionIndex); // 해당 문제로 바로 이동
+        }
       }
     }
   }, []);
@@ -1493,15 +1533,382 @@ export default function Home() {
     }, 500);
   }, []); // 의존성 배열 비움 - ref 사용으로 안정화
 
-  // 인트로
-  if (step === -1) {
+  // 인트로 슬라이드 데이터
+  const introSlides = [
+    {
+      title: "안녕하세요!",
+      subtitle: "저는 든든이에요 🐻",
+      content: "뇌 건강 검진을 통해\n나의 인지 기능을 확인해보세요",
+      emoji: "🐻",
+      bgColor: "from-orange-100 to-yellow-100",
+      textColor: "text-orange-800",
+      countUpTarget: null
+    },
+    {
+      title: "15가지 인지 기능 검진",
+      subtitle: "종합적인 뇌 건강 평가",
+      content: "기억력, 주의력, 계산력 등\n15가지 영역을 체계적으로 평가합니다",
+      emoji: "🧠",
+      bgColor: "from-blue-100 to-indigo-100",
+      textColor: "text-blue-800",
+      stats: "가지",
+      countUpTarget: 15
+    },
+    {
+      title: "약 10분이면 끝!",
+      subtitle: "간편하고 빠른 검진",
+      content: "복잡한 준비 없이\n스마트폰으로 바로 시작하세요",
+      emoji: "⏱️",
+      bgColor: "from-green-100 to-emerald-100",
+      textColor: "text-green-800",
+      stats: "분",
+      countUpTarget: 10
+    },
+    {
+      title: "미래 간병비 예측",
+      subtitle: "10년 후 예상 비용까지",
+      content: "검진 결과와 함께\n2036년 예상 간병비를 시뮬레이션합니다",
+      emoji: "💰",
+      bgColor: "from-purple-100 to-pink-100",
+      textColor: "text-purple-800",
+      stats: "2036년",
+      countUpTarget: null
+    }
+  ];
+
+  // 자동 진행 타이머 (인트로 화면일 때만)
+  useEffect(() => {
+    if (step !== -2 || !autoPlayEnabled || introSlide >= introSlides.length - 1) return;
+    
+    const timer = setTimeout(() => {
+      setIntroSlide(prev => prev + 1);
+    }, 4000); // 4초마다 자동 진행
+
+    return () => clearTimeout(timer);
+  }, [step, introSlide, autoPlayEnabled]);
+
+  // 슬라이드 변경 시 애니메이션 리셋 (인트로 화면일 때만)
+  useEffect(() => {
+    if (step !== -2) return;
+
+    const currentSlide = introSlides[introSlide];
+    
+    setEmojiVisible(false);
+    setContentVisible(false);
+    setCountUpValue(0);
+    
+    // 이모지 등장 애니메이션
+    const emojiTimer = setTimeout(() => {
+      setEmojiVisible(true);
+    }, 100);
+
+    // 콘텐츠 페이드인
+    const contentTimer = setTimeout(() => {
+      setContentVisible(true);
+    }, 300);
+
+    // 숫자 카운트업
+    if (currentSlide.countUpTarget) {
+      const duration = 1500; // 1.5초 동안 카운트업
+      const steps = 30;
+      const increment = currentSlide.countUpTarget / steps;
+      let current = 0;
+      
+      const countTimer = setInterval(() => {
+        current += increment;
+        if (current >= currentSlide.countUpTarget!) {
+          setCountUpValue(currentSlide.countUpTarget!);
+          clearInterval(countTimer);
+        } else {
+          setCountUpValue(Math.floor(current));
+        }
+      }, duration / steps);
+
+      return () => {
+        clearTimeout(emojiTimer);
+        clearTimeout(contentTimer);
+        clearInterval(countTimer);
+      };
+    }
+
+    return () => {
+      clearTimeout(emojiTimer);
+      clearTimeout(contentTimer);
+    };
+  }, [step, introSlide]);
+
+  // 인트로 화면 (step === -2) - 슬라이드 카드 스타일
+  if (step === -2) {
+    const currentSlide = introSlides[introSlide];
+
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-orange-50 p-6 space-y-10">
-        <div className="text-9xl animate-bounce">🐻</div>
-        <h1 className="text-4xl font-black text-[#2E7D32]">든든이 뇌 검진</h1>
-        <button onClick={() => setStep(0)} className="w-full bg-[#2E7D32] text-white py-6 rounded-3xl text-2xl font-bold shadow-xl active:scale-95 transition-transform">
-          검사 시작하기
-        </button>
+      <div className="relative h-screen w-full overflow-hidden bg-gradient-to-br from-orange-50 via-blue-50 to-green-50">
+        {/* 배경 장식 요소 */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-20 left-10 w-32 h-32 bg-orange-200/30 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-10 w-40 h-40 bg-blue-200/30 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <div className="absolute top-1/2 left-1/2 w-48 h-48 bg-green-200/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
+        </div>
+
+        <div className="relative h-full flex flex-col items-center justify-center p-6">
+          {/* 자동 진행 토글 */}
+          <button
+            onClick={() => setAutoPlayEnabled(!autoPlayEnabled)}
+            className="absolute top-6 left-6 z-10 bg-white/80 hover:bg-white text-gray-600 px-4 py-2 rounded-full text-sm font-bold shadow-lg transition-all"
+          >
+            {autoPlayEnabled ? '⏸ 일시정지' : '▶ 자동진행'}
+          </button>
+
+          {/* 슬라이드 카드 */}
+          <div className="w-full max-w-md">
+            <div 
+              key={introSlide}
+              className={`bg-gradient-to-br ${currentSlide.bgColor} rounded-3xl p-8 shadow-2xl transform transition-all duration-500 ease-in-out`}
+            >
+              {/* 이모지 */}
+              <div className="text-center mb-6">
+                <div 
+                  className={`text-8xl mb-4 transition-all duration-700 ${
+                    emojiVisible 
+                      ? 'opacity-100 scale-100 animate-bounce' 
+                      : 'opacity-0 scale-50'
+                  }`}
+                >
+                  {currentSlide.emoji}
+                </div>
+                {currentSlide.stats && (
+                  <div className={`inline-block bg-white/80 px-4 py-2 rounded-full transition-all duration-500 ${
+                    emojiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                  }`}>
+                    <span className="text-2xl font-black text-gray-800">
+                      {currentSlide.countUpTarget 
+                        ? `${countUpValue}${currentSlide.stats}` 
+                        : currentSlide.stats}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* 제목 */}
+              <h2 className={`text-3xl font-black ${currentSlide.textColor} text-center mb-3 transition-all duration-500 ${
+                contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+              }`}>
+                {currentSlide.title}
+              </h2>
+              
+              {/* 부제목 */}
+              <h3 className={`text-xl font-bold text-gray-700 text-center mb-6 transition-all duration-500 delay-100 ${
+                contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+              }`}>
+                {currentSlide.subtitle}
+              </h3>
+
+              {/* 내용 */}
+              <p className={`text-lg text-gray-800 text-center whitespace-pre-line leading-relaxed font-medium transition-all duration-500 delay-200 ${
+                contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+              }`}>
+                {currentSlide.content}
+              </p>
+            </div>
+
+            {/* 슬라이드 인디케이터 */}
+            <div className="flex justify-center gap-2 mt-6">
+              {introSlides.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setIntroSlide(index)}
+                  className={`h-2 rounded-full transition-all ${
+                    index === introSlide 
+                      ? 'w-8 bg-[#2E7D32]' 
+                      : 'w-2 bg-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* 네비게이션 버튼 */}
+            <div className="flex gap-4 mt-6">
+              {introSlide > 0 && (
+                <button
+                  onClick={() => {
+                    setAutoPlayEnabled(false);
+                    setIntroSlide(introSlide - 1);
+                  }}
+                  className="flex-1 bg-white/80 hover:bg-white text-gray-700 py-4 rounded-2xl text-lg font-bold shadow-lg active:scale-95 transition-transform"
+                >
+                  ◀ 이전
+                </button>
+              )}
+              {introSlide < introSlides.length - 1 ? (
+                <button
+                  onClick={() => {
+                    setAutoPlayEnabled(false);
+                    setIntroSlide(introSlide + 1);
+                  }}
+                  className="flex-1 bg-[#2E7D32] hover:bg-[#1b5e20] text-white py-4 rounded-2xl text-lg font-bold shadow-lg active:scale-95 transition-transform"
+                >
+                  다음 ▶
+                </button>
+              ) : (
+                <button
+                  onClick={() => setStep(-1)}
+                  className="flex-1 bg-gradient-to-r from-[#2E7D32] to-[#1b5e20] hover:from-[#1b5e20] hover:to-[#2E7D32] text-white py-4 rounded-2xl text-xl font-bold shadow-xl active:scale-95 transition-transform"
+                >
+                  시작하기 ▶
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 애니메이션 스타일 */}
+        <style jsx>{`
+          @keyframes slideIn {
+            from {
+              opacity: 0;
+              transform: translateX(30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
+          }
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          @keyframes scaleIn {
+            from {
+              opacity: 0;
+              transform: scale(0.5);
+            }
+            to {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // 사용자 정보 입력 화면 (step === -1)
+  if (step === -1) {
+    const currentYear = new Date().getFullYear();
+    const birthYear = userProfile.birthYear ? parseInt(userProfile.birthYear) : 0;
+    const calculatedAge = birthYear > 0 ? currentYear - birthYear + 1 : 0;
+
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+        <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl space-y-6">
+          <div className="text-center">
+            <div className="text-6xl mb-4">🐻</div>
+            <h2 className="text-3xl font-black text-gray-800 mb-2">기본 정보 입력</h2>
+            <p className="text-gray-600 text-sm">정확한 검진을 위해 정보를 입력해주세요</p>
+          </div>
+
+          <div className="space-y-4">
+            {/* 출생년도 */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">출생년도</label>
+              <input
+                type="number"
+                placeholder="예: 1959"
+                min="1920"
+                max={currentYear}
+                value={userProfile.birthYear}
+                onChange={(e) => {
+                  const year = e.target.value;
+                  setUserProfile(prev => ({
+                    ...prev,
+                    birthYear: year,
+                    age: year ? currentYear - parseInt(year) + 1 : 0
+                  }));
+                }}
+                className="w-full p-4 rounded-xl border-2 border-gray-300 text-lg font-bold text-center focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none"
+              />
+              {calculatedAge > 0 && (
+                <p className="text-sm text-gray-500 mt-1 text-center">만 {calculatedAge - 1}세 / 한국나이 {calculatedAge}세</p>
+              )}
+            </div>
+
+            {/* 성별 */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">성별</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setUserProfile(prev => ({ ...prev, gender: '남성' }))}
+                  className={`py-4 rounded-xl text-lg font-bold transition-all ${
+                    userProfile.gender === '남성'
+                      ? 'bg-blue-600 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  남성
+                </button>
+                <button
+                  onClick={() => setUserProfile(prev => ({ ...prev, gender: '여성' }))}
+                  className={`py-4 rounded-xl text-lg font-bold transition-all ${
+                    userProfile.gender === '여성'
+                      ? 'bg-pink-600 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  여성
+                </button>
+              </div>
+            </div>
+
+            {/* 사는 지역 */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">사는 지역</label>
+              <select
+                value={userProfile.region}
+                onChange={(e) => setUserProfile(prev => ({ ...prev, region: e.target.value }))}
+                className="w-full p-4 rounded-xl border-2 border-gray-300 text-lg font-bold text-center focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none bg-white"
+              >
+                <option value="">지역을 선택하세요</option>
+                <option value="서울">서울</option>
+                <option value="부산">부산</option>
+                <option value="대구">대구</option>
+                <option value="인천">인천</option>
+                <option value="광주">광주</option>
+                <option value="대전">대전</option>
+                <option value="울산">울산</option>
+                <option value="세종">세종</option>
+                <option value="경기">경기</option>
+                <option value="강원">강원</option>
+                <option value="충북">충북</option>
+                <option value="충남">충남</option>
+                <option value="전북">전북</option>
+                <option value="전남">전남</option>
+                <option value="경북">경북</option>
+                <option value="경남">경남</option>
+                <option value="제주">제주</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              if (!userProfile.birthYear || !userProfile.gender || !userProfile.region) {
+                alert('모든 정보를 입력해주세요.\n\n• 출생년도\n• 성별\n• 사는 지역');
+                return;
+              }
+              setStep(0);
+            }}
+            disabled={!userProfile.birthYear || !userProfile.gender || !userProfile.region}
+            className="w-full bg-[#2E7D32] hover:bg-[#1b5e20] disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-5 rounded-2xl text-xl font-bold shadow-lg active:scale-95 transition-transform"
+          >
+            검사 시작하기 ▶
+          </button>
+        </div>
       </div>
     );
   }
@@ -1898,25 +2305,195 @@ export default function Home() {
                     onChange={(e) => setPhoneNumber(e.target.value)} 
                 />
                 
-                <div className="bg-black/20 p-2.5 rounded-lg text-left space-y-1.5">
+                <div className="bg-black/20 p-2.5 rounded-lg text-left space-y-2">
+                    {/* 이용약관 동의 */}
+                    <label className="flex items-start gap-2 text-[10px] text-gray-200 cursor-pointer">
+                        <input type="checkbox" id="agree0" className="mt-0.5" />
+                        <div className="flex-1 flex items-center justify-between">
+                            <span><span className="text-yellow-400 font-bold">[필수]</span> 이용약관 동의</span>
+                            <button 
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setShowTermsModal({type: 'terms'});
+                                }}
+                                className="text-blue-300 underline text-[9px] ml-2"
+                            >
+                                내용보기
+                            </button>
+                        </div>
+                    </label>
+                    
+                    {/* 개인정보 수집 및 이용 동의 */}
                     <label className="flex items-start gap-2 text-[10px] text-gray-200 cursor-pointer">
                         <input type="checkbox" id="agree1" className="mt-0.5" />
-                        <span><span className="text-yellow-400 font-bold">[필수]</span> 개인정보 수집 및 이용 동의</span>
+                        <div className="flex-1 flex items-center justify-between">
+                            <span><span className="text-yellow-400 font-bold">[필수]</span> 개인정보 수집 및 이용 동의</span>
+                            <button 
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setShowTermsModal({type: 'privacy'});
+                                }}
+                                className="text-blue-300 underline text-[9px] ml-2"
+                            >
+                                내용보기
+                            </button>
+                        </div>
                     </label>
+                    
+                    {/* 개인정보 제3자 제공 동의 (카카오톡) */}
+                    <label className="flex items-start gap-2 text-[10px] text-gray-200 cursor-pointer">
+                        <input type="checkbox" id="agree3" className="mt-0.5" />
+                        <div className="flex-1 flex items-center justify-between">
+                            <span><span className="text-yellow-400 font-bold">[필수]</span> 개인정보 제3자 제공 동의 (카카오톡)</span>
+                            <button 
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setShowTermsModal({type: 'thirdparty'});
+                                }}
+                                className="text-blue-300 underline text-[9px] ml-2"
+                            >
+                                내용보기
+                            </button>
+                        </div>
+                    </label>
+                    
+                    {/* 마케팅 활용 동의 (선택) */}
                     <label className="flex items-start gap-2 text-[10px] text-gray-200 cursor-pointer">
                         <input type="checkbox" id="agree2" className="mt-0.5" />
                         <span><span className="text-blue-300 font-bold">[선택]</span> 보험 상품 안내 및 마케팅 활용 동의</span>
                     </label>
                 </div>
+                
+                {/* 약관 내용 모달 */}
+                {showTermsModal.type && (
+                    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowTermsModal({type: null})}>
+                        <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-bold text-gray-800">
+                                    {showTermsModal.type === 'terms' && '이용약관'}
+                                    {showTermsModal.type === 'privacy' && '개인정보 수집 및 이용 동의'}
+                                    {showTermsModal.type === 'thirdparty' && '개인정보 제3자 제공 동의'}
+                                </h3>
+                                <button 
+                                    onClick={() => setShowTermsModal({type: null})}
+                                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <div className="text-sm text-gray-700 leading-relaxed space-y-4">
+                                {showTermsModal.type === 'terms' && (
+                                    <div className="space-y-3">
+                                        <h4 className="font-bold text-base">제1조 (목적)</h4>
+                                        <p>본 약관은 뇌 건강 검진 서비스(이하 "서비스")의 이용과 관련하여 서비스 제공자와 이용자 간의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.</p>
+                                        
+                                        <h4 className="font-bold text-base">제2조 (정의)</h4>
+                                        <p>① "서비스"란 뇌 건강 검진 및 보험 상담 신청 서비스를 의미합니다.<br/>
+                                        ② "이용자"란 본 약관에 동의하고 서비스를 이용하는 자를 의미합니다.</p>
+                                        
+                                        <h4 className="font-bold text-base">제3조 (약관의 효력 및 변경)</h4>
+                                        <p>① 본 약관은 서비스 화면에 게시하거나 기타의 방법으로 이용자에게 공지함으로써 효력을 발생합니다.<br/>
+                                        ② 회사는 필요한 경우 관련 법령을 위배하지 않는 범위에서 본 약관을 변경할 수 있습니다.</p>
+                                        
+                                        <h4 className="font-bold text-base">제4조 (서비스의 제공)</h4>
+                                        <p>① 회사는 다음과 같은 서비스를 제공합니다:<br/>
+                                        - 뇌 건강 검진 서비스<br/>
+                                        - 보험 상담 신청 서비스<br/>
+                                        - 검진 결과 분석 및 제공</p>
+                                        
+                                        <h4 className="font-bold text-base">제5조 (이용자의 의무)</h4>
+                                        <p>① 이용자는 본 서비스를 이용함에 있어 다음 행위를 하여서는 안 됩니다:<br/>
+                                        - 타인의 정보를 도용하는 행위<br/>
+                                        - 서비스의 안정적 운영을 방해하는 행위<br/>
+                                        - 법령에 위반되는 행위</p>
+                                    </div>
+                                )}
+                                
+                                {showTermsModal.type === 'privacy' && (
+                                    <div className="space-y-3">
+                                        <h4 className="font-bold text-base">1. 개인정보의 수집 및 이용 목적</h4>
+                                        <p>회사는 다음의 목적을 위하여 개인정보를 처리합니다:</p>
+                                        <ul className="list-disc list-inside space-y-1 ml-2">
+                                            <li>뇌 건강 검진 서비스 제공</li>
+                                            <li>보험 상담 신청 및 상담 진행</li>
+                                            <li>검진 결과 분석 및 제공</li>
+                                            <li>고객 문의 및 불만 처리</li>
+                                        </ul>
+                                        
+                                        <h4 className="font-bold text-base">2. 수집하는 개인정보의 항목</h4>
+                                        <p>① 필수 항목: 이름, 휴대폰 번호<br/>
+                                        ② 자동 수집 항목: IP주소, 쿠키, 접속 로그 등</p>
+                                        
+                                        <h4 className="font-bold text-base">3. 개인정보의 보유 및 이용 기간</h4>
+                                        <p>① 서비스 이용 기간 동안 보유 및 이용합니다.<br/>
+                                        ② 관련 법령에 따라 일정 기간 보관이 필요한 경우 해당 기간 동안 보관합니다.</p>
+                                        
+                                        <h4 className="font-bold text-base">4. 개인정보의 제3자 제공</h4>
+                                        <p>회사는 원칙적으로 이용자의 개인정보를 제3자에게 제공하지 않습니다. 다만, 다음의 경우에는 예외로 합니다:<br/>
+                                        - 이용자가 사전에 동의한 경우<br/>
+                                        - 법령의 규정에 의거하거나, 수사 목적으로 법령에 정해진 절차와 방법에 따라 수사기관의 요구가 있는 경우</p>
+                                        
+                                        <h4 className="font-bold text-base">5. 개인정보의 파기</h4>
+                                        <p>회사는 개인정보 보유기간의 경과, 처리목적 달성 등 개인정보가 불필요하게 되었을 때에는 지체없이 해당 개인정보를 파기합니다.</p>
+                                        
+                                        <h4 className="font-bold text-base">6. 이용자의 권리</h4>
+                                        <p>이용자는 언제든지 개인정보 열람, 정정, 삭제, 처리정지 요구 등의 권리를 행사할 수 있습니다.</p>
+                                    </div>
+                                )}
+                                
+                                {showTermsModal.type === 'thirdparty' && (
+                                    <div className="space-y-3">
+                                        <h4 className="font-bold text-base">1. 제3자 제공 목적</h4>
+                                        <p>카카오톡 알림톡 발송을 통한 보험 상담 안내 및 검진 결과 전달</p>
+                                        
+                                        <h4 className="font-bold text-base">2. 제공받는 자</h4>
+                                        <p>카카오톡 (카카오 주식회사)</p>
+                                        
+                                        <h4 className="font-bold text-base">3. 제공하는 개인정보 항목</h4>
+                                        <p>이름, 휴대폰 번호</p>
+                                        
+                                        <h4 className="font-bold text-base">4. 제공받는 자의 이용 목적</h4>
+                                        <p>알림톡 발송 서비스 제공</p>
+                                        
+                                        <h4 className="font-bold text-base">5. 보유 및 이용 기간</h4>
+                                        <p>알림톡 발송 완료 시까지 (발송 완료 후 즉시 파기)</p>
+                                        
+                                        <h4 className="font-bold text-base">6. 동의 거부 권리 및 불이익</h4>
+                                        <p>귀하는 위 개인정보 제3자 제공에 대한 동의를 거부할 권리가 있습니다. 다만, 동의를 거부하실 경우 카카오톡 알림톡을 통한 상담 안내 및 검진 결과 전달 서비스를 받으실 수 없습니다.</p>
+                                    </div>
+                                )}
+                            </div>
+                            <button 
+                                onClick={() => setShowTermsModal({type: null})}
+                                className="mt-6 w-full bg-blue-600 text-white py-3 rounded-xl font-bold"
+                            >
+                                확인
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 <button 
                     onClick={async () => {
+                        const chk0 = document.getElementById('agree0') as HTMLInputElement;
                         const chk1 = document.getElementById('agree1') as HTMLInputElement;
                         const chk2 = document.getElementById('agree2') as HTMLInputElement;
+                        const chk3 = document.getElementById('agree3') as HTMLInputElement;
                         
-                        // 1차 검증: 필수 동의 체크 확인 (개인정보 수집 동의만 필수, 마케팅은 선택)
-                        if(!chk1?.checked) {
-                            return alert(`⚠️ 필수 동의 항목을 체크해주세요\n\n[필수] 개인정보 수집 및 이용 동의에 체크 표시를 해주세요.\n\n필수 항목에 동의하셔야\n보험 설계 서비스를 이용하실 수 있습니다.`);
+                        // 1차 검증: 필수 동의 체크 확인
+                        const missing = [];
+                        if(!chk0?.checked) missing.push('이용약관 동의');
+                        if(!chk1?.checked) missing.push('개인정보 수집 및 이용 동의');
+                        if(!chk3?.checked) missing.push('개인정보 제3자 제공 동의 (카카오톡)');
+                        
+                        if(missing.length > 0) {
+                            return alert(`⚠️ 필수 동의 항목을 체크해주세요\n\n아래 항목에 체크 표시를 해주세요:\n\n${missing.map((m, i) => `[필수] ${m}`).join('\n')}\n\n모든 필수 항목에 동의하셔야\n보험 설계 서비스를 이용하실 수 있습니다.`);
                         }
                         
                         if(!userName || userName.trim().length < 2) {
@@ -1970,6 +2547,11 @@ export default function Home() {
                                 body: JSON.stringify({
                                     userName,
                                     phoneNumber,
+                                    // 사용자 기본 정보
+                                    birthYear: userProfile.birthYear,
+                                    gender: userProfile.gender,
+                                    region: userProfile.region,
+                                    age: userProfile.age,
                                     total,
                                     grade,
                                     status,
@@ -1988,8 +2570,10 @@ export default function Home() {
                                     categoryScores,
                                     // 기타
                                     familyWarning,
-                                    agree1: chk1?.checked,
-                                    agree2: chk2?.checked,
+                                    agree0: chk0?.checked, // 이용약관 동의
+                                    agree1: chk1?.checked, // 개인정보 수집 및 이용 동의
+                                    agree2: chk2?.checked, // 마케팅 활용 동의 (선택)
+                                    agree3: chk3?.checked, // 개인정보 제3자 제공 동의 (카카오톡)
                                 }),
                             });
 
@@ -2050,7 +2634,7 @@ export default function Home() {
           <div className="w-full text-center mb-2">
             <span className="text-lg font-bold text-gray-500">문제 {q.id}/{QUIZ_QUESTIONS.length}</span>
           </div>
-          <h2 className="text-2xl font-bold text-center whitespace-pre-line leading-relaxed text-gray-800">
+          <h2 className={`${q.type === 'serial-subtraction' || q.type === 'complex-calculation' ? 'text-3xl sm:text-4xl font-black' : 'text-2xl font-bold'} text-center whitespace-pre-line leading-relaxed text-gray-800`}>
             {q.questionText}
           </h2>
 
@@ -2152,7 +2736,7 @@ export default function Home() {
                     goNext({acc, c, wro: w});
                   }} />;
                 case 'card-match': return <CardGame onComplete={() => goNext('done')} />;
-                case 'schulte-table': return <SchulteTableGame onComplete={(t) => goNext(t)} />;
+                case 'schulte-table': return <SchulteTableGame timeLimit={q.timeLimit} onComplete={(t) => goNext(t)} />;
                 case 'pattern-logic': return <PatternLogicGame onComplete={() => goNext('done')} />;
                 case 'multi-choice': 
                   console.log('🔍 [DEBUG] 10번 문제 렌더링:', { step, questionId: q.id, options: q.options });
