@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
       userName,
       phoneNumber,
       birthYear,
+      birthMonth,
+      birthDay,
       gender,
       region,
       age,
@@ -133,8 +135,10 @@ export async function POST(request: NextRequest) {
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">${phoneNumber}</td>
               </tr>
               <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px; background-color: #f1f5f9;">출생년도</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">${birthYear || '미입력'}년 ${age ? `(만 ${age - 1}세)` : ''}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px; background-color: #f1f5f9;">생년월일</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">
+                  ${birthYear || '미입력'}${birthMonth ? ` ${String(birthMonth).padStart(2, '0')}` : ''}${birthDay ? ` ${String(birthDay).padStart(2, '0')}` : ''}${age ? ` (만 ${age}세)` : ''}
+                </td>
               </tr>
               <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px; background-color: #f1f5f9;">성별</td>

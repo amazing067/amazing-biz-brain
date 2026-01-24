@@ -1417,6 +1417,8 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState({ 
     age: 0, 
     birthYear: '', 
+    birthMonth: '', 
+    birthDay: '', 
     gender: '', 
     region: '' 
   });
@@ -1425,6 +1427,10 @@ export default function Home() {
   const [showGuide, setShowGuide] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false); // ★ 건너뛰기 방지용 락
   const [showTermsModal, setShowTermsModal] = useState<{type: 'terms' | 'privacy' | 'thirdparty' | null}>({type: null});
+  const [agree0, setAgree0] = useState(false);
+  const [agree1, setAgree1] = useState(false);
+  const [agree2, setAgree2] = useState(false);
+  const [agree3, setAgree3] = useState(false);
 
   // 테스트 모드: URL 파라미터로 결과 화면 또는 특정 문제 바로 보기
   useEffect(() => {
@@ -1447,7 +1453,7 @@ export default function Home() {
           else testAnswers[q.id] = q.correctAnswer;
         });
         setAnswers(testAnswers);
-        setUserProfile({ age: 65, birthYear: '1959', gender: '남성', region: '서울' });
+        setUserProfile({ age: 65, birthYear: '1959', birthMonth: '05', birthDay: '29', gender: '남성', region: '서울' });
         setStep(QUIZ_QUESTIONS.length); // 결과 화면으로 바로 이동
       }
       
@@ -1473,7 +1479,7 @@ export default function Home() {
             else testAnswers[q.id] = q.correctAnswer;
           }
           setAnswers(testAnswers);
-          setUserProfile({ age: 65, birthYear: '1959', gender: '남성', region: '서울' });
+          setUserProfile({ age: 65, birthYear: '1959', birthMonth: '05', birthDay: '29', gender: '남성', region: '서울' });
           setStep(questionIndex); // 해당 문제로 바로 이동
         }
       }
@@ -1801,8 +1807,29 @@ export default function Home() {
   // 사용자 정보 입력 화면 (step === -1)
   if (step === -1) {
     const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    const currentDay = new Date().getDate();
+    
     const birthYear = userProfile.birthYear ? parseInt(userProfile.birthYear) : 0;
-    const calculatedAge = birthYear > 0 ? currentYear - birthYear + 1 : 0;
+    const birthMonth = userProfile.birthMonth ? parseInt(userProfile.birthMonth) : 0;
+    const birthDay = userProfile.birthDay ? parseInt(userProfile.birthDay) : 0;
+    
+    // 정확한 나이 계산 (월일 고려)
+    let calculatedAge = 0;
+    let koreanAge = 0;
+    if (birthYear > 0) {
+      koreanAge = currentYear - birthYear + 1;
+      if (birthMonth > 0 && birthDay > 0) {
+        // 만 나이 계산
+        let age = currentYear - birthYear;
+        if (currentMonth < birthMonth || (currentMonth === birthMonth && currentDay < birthDay)) {
+          age--;
+        }
+        calculatedAge = age;
+      } else {
+        calculatedAge = koreanAge - 1;
+      }
+    }
 
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
@@ -1814,27 +1841,69 @@ export default function Home() {
           </div>
 
           <div className="space-y-4">
-            {/* 출생년도 */}
+            {/* 생년월일 */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">출생년도</label>
-              <input
-                type="number"
-                placeholder="예: 1959"
-                min="1920"
-                max={currentYear}
-                value={userProfile.birthYear}
-                onChange={(e) => {
-                  const year = e.target.value;
-                  setUserProfile(prev => ({
-                    ...prev,
-                    birthYear: year,
-                    age: year ? currentYear - parseInt(year) + 1 : 0
-                  }));
-                }}
-                className="w-full p-4 rounded-xl border-2 border-gray-300 text-lg font-bold text-center focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none"
-              />
+              <label className="block text-sm font-bold text-gray-700 mb-2">생년월일</label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <input
+                    type="number"
+                    placeholder="년"
+                    min="1920"
+                    max={currentYear}
+                    value={userProfile.birthYear}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const year = raw.length > 4 ? raw.slice(0, 4) : raw; // 생년 최대 4자리
+                      setUserProfile(prev => ({
+                        ...prev,
+                        birthYear: year,
+                        age: year ? currentYear - parseInt(year) + 1 : 0
+                      }));
+                    }}
+                    className="w-full p-4 rounded-xl border-2 border-gray-300 text-lg font-bold text-center focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    placeholder="월"
+                    min="1"
+                    max="12"
+                    value={userProfile.birthMonth}
+                    onChange={(e) => {
+                      const month = e.target.value;
+                      if (month === '' || (parseInt(month) >= 1 && parseInt(month) <= 12)) {
+                        setUserProfile(prev => ({ ...prev, birthMonth: month }));
+                      }
+                    }}
+                    className="w-full p-4 rounded-xl border-2 border-gray-300 text-lg font-bold text-center focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    placeholder="일"
+                    min="1"
+                    max="31"
+                    value={userProfile.birthDay}
+                    onChange={(e) => {
+                      const day = e.target.value;
+                      if (day === '' || (parseInt(day) >= 1 && parseInt(day) <= 31)) {
+                        setUserProfile(prev => ({ ...prev, birthDay: day }));
+                      }
+                    }}
+                    className="w-full p-4 rounded-xl border-2 border-gray-300 text-lg font-bold text-center focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none"
+                  />
+                </div>
+              </div>
               {calculatedAge > 0 && (
-                <p className="text-sm text-gray-500 mt-1 text-center">만 {calculatedAge - 1}세 / 한국나이 {calculatedAge}세</p>
+                <p className="text-sm text-gray-500 mt-2 text-center">
+                  {birthMonth > 0 && birthDay > 0 
+                    ? `만 ${calculatedAge}세 / 한국나이 ${koreanAge}세`
+                    : `한국나이 ${koreanAge}세`
+                  }
+                </p>
               )}
             </div>
 
@@ -1898,7 +1967,16 @@ export default function Home() {
           <button
             onClick={() => {
               if (!userProfile.birthYear || !userProfile.gender || !userProfile.region) {
-                alert('모든 정보를 입력해주세요.\n\n• 출생년도\n• 성별\n• 사는 지역');
+                alert('모든 정보를 입력해주세요.\n\n• 생년월일 (년은 필수, 월일은 선택)\n• 성별\n• 사는 지역');
+                return;
+              }
+              // 월일 유효성 검증
+              if (userProfile.birthMonth && (parseInt(userProfile.birthMonth) < 1 || parseInt(userProfile.birthMonth) > 12)) {
+                alert('월은 1~12 사이의 숫자만 입력 가능합니다.');
+                return;
+              }
+              if (userProfile.birthDay && (parseInt(userProfile.birthDay) < 1 || parseInt(userProfile.birthDay) > 31)) {
+                alert('일은 1~31 사이의 숫자만 입력 가능합니다.');
                 return;
               }
               setStep(0);
@@ -2306,9 +2384,39 @@ export default function Home() {
                 />
                 
                 <div className="bg-black/20 p-2.5 rounded-lg text-left space-y-2">
+                    {/* 전체 동의 */}
+                    <div className="flex items-center justify-between pb-2 border-b border-white/20">
+                        <label className="flex items-center gap-2 text-xs text-gray-100 cursor-pointer font-bold">
+                            <input 
+                                type="checkbox" 
+                                checked={agree0 && agree1 && agree2 && agree3} 
+                                onChange={(e) => {
+                                    const v = e.target.checked;
+                                    setAgree0(v);
+                                    setAgree1(v);
+                                    setAgree2(v);
+                                    setAgree3(v);
+                                }} 
+                                className="mt-0.5" 
+                            />
+                            전체 동의
+                        </label>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAgree0(true);
+                                setAgree1(true);
+                                setAgree2(true);
+                                setAgree3(true);
+                            }}
+                            className="text-[10px] text-yellow-300 underline"
+                        >
+                            전체 동의하기
+                        </button>
+                    </div>
                     {/* 이용약관 동의 */}
                     <label className="flex items-start gap-2 text-[10px] text-gray-200 cursor-pointer">
-                        <input type="checkbox" id="agree0" className="mt-0.5" />
+                        <input type="checkbox" checked={agree0} onChange={(e) => setAgree0(e.target.checked)} className="mt-0.5" />
                         <div className="flex-1 flex items-center justify-between">
                             <span><span className="text-yellow-400 font-bold">[필수]</span> 이용약관 동의</span>
                             <button 
@@ -2327,7 +2435,7 @@ export default function Home() {
                     
                     {/* 개인정보 수집 및 이용 동의 */}
                     <label className="flex items-start gap-2 text-[10px] text-gray-200 cursor-pointer">
-                        <input type="checkbox" id="agree1" className="mt-0.5" />
+                        <input type="checkbox" checked={agree1} onChange={(e) => setAgree1(e.target.checked)} className="mt-0.5" />
                         <div className="flex-1 flex items-center justify-between">
                             <span><span className="text-yellow-400 font-bold">[필수]</span> 개인정보 수집 및 이용 동의</span>
                             <button 
@@ -2346,7 +2454,7 @@ export default function Home() {
                     
                     {/* 개인정보 제3자 제공 동의 (카카오톡) */}
                     <label className="flex items-start gap-2 text-[10px] text-gray-200 cursor-pointer">
-                        <input type="checkbox" id="agree3" className="mt-0.5" />
+                        <input type="checkbox" checked={agree3} onChange={(e) => setAgree3(e.target.checked)} className="mt-0.5" />
                         <div className="flex-1 flex items-center justify-between">
                             <span><span className="text-yellow-400 font-bold">[필수]</span> 개인정보 제3자 제공 동의 (카카오톡)</span>
                             <button 
@@ -2365,7 +2473,7 @@ export default function Home() {
                     
                     {/* 마케팅 활용 동의 (선택) */}
                     <label className="flex items-start gap-2 text-[10px] text-gray-200 cursor-pointer">
-                        <input type="checkbox" id="agree2" className="mt-0.5" />
+                        <input type="checkbox" checked={agree2} onChange={(e) => setAgree2(e.target.checked)} className="mt-0.5" />
                         <span><span className="text-blue-300 font-bold">[선택]</span> 보험 상품 안내 및 마케팅 활용 동의</span>
                     </label>
                 </div>
@@ -2481,19 +2589,14 @@ export default function Home() {
 
                 <button 
                     onClick={async () => {
-                        const chk0 = document.getElementById('agree0') as HTMLInputElement;
-                        const chk1 = document.getElementById('agree1') as HTMLInputElement;
-                        const chk2 = document.getElementById('agree2') as HTMLInputElement;
-                        const chk3 = document.getElementById('agree3') as HTMLInputElement;
-                        
                         // 1차 검증: 필수 동의 체크 확인
                         const missing = [];
-                        if(!chk0?.checked) missing.push('이용약관 동의');
-                        if(!chk1?.checked) missing.push('개인정보 수집 및 이용 동의');
-                        if(!chk3?.checked) missing.push('개인정보 제3자 제공 동의 (카카오톡)');
+                        if(!agree0) missing.push('이용약관 동의');
+                        if(!agree1) missing.push('개인정보 수집 및 이용 동의');
+                        if(!agree3) missing.push('개인정보 제3자 제공 동의 (카카오톡)');
                         
                         if(missing.length > 0) {
-                            return alert(`⚠️ 필수 동의 항목을 체크해주세요\n\n아래 항목에 체크 표시를 해주세요:\n\n${missing.map((m, i) => `[필수] ${m}`).join('\n')}\n\n모든 필수 항목에 동의하셔야\n보험 설계 서비스를 이용하실 수 있습니다.`);
+                            return alert(`⚠️ 필수 동의 항목을 체크해주세요\n\n아래 항목에 체크 표시를 해주세요:\n\n${missing.map((m) => `[필수] ${m}`).join('\n')}\n\n모든 필수 항목에 동의하셔야\n보험 설계 서비스를 이용하실 수 있습니다.`);
                         }
                         
                         if(!userName || userName.trim().length < 2) {
@@ -2504,8 +2607,14 @@ export default function Home() {
                             return alert('📱 전화번호 확인\n\n연락받으실 휴대폰 번호를\n정확히 입력해주세요.');
                         }
                         
-                        // 2차 최종 확인 (막 눌러서 실수 방지)
-                        const confirmMessage = `📞 전문 보험설계사 연락 안내\n\n입력하신 정보:\n• 이름: ${userName}\n• 연락처: ${phoneNumber}\n\n✅ 전문 보험설계사가 직접 연락드려\n   • 무료 보장분석\n   • 맞춤형 간병비 보험 설계안\n   을 무료로 제공해드립니다.\n\n⚠️ 연락을 받으시겠습니까?\n\n(취소하시면 신청이 되지 않습니다)`;
+                        // 2차 최종 확인: 인트로 정보(생년월일·성별·지역) + 이름·연락처 + 동의 함께 전송됨
+                        const birthDateStr = userProfile.birthYear 
+                            ? `${userProfile.birthYear}${userProfile.birthMonth ? ` ${String(userProfile.birthMonth).padStart(2, '0')}` : ''}${userProfile.birthDay ? ` ${String(userProfile.birthDay).padStart(2, '0')}` : ''}`
+                            : '';
+                        const introLine = (userProfile.birthYear || userProfile.gender || userProfile.region)
+                            ? `• 생년월일: ${birthDateStr || '-'} / 성별: ${userProfile.gender || '-'} / 지역: ${userProfile.region || '-'}\n`
+                            : '';
+                        const confirmMessage = `📞 전문 보험설계사 연락 안내\n\n입력하신 정보 (함께 전송됩니다):\n${introLine}• 이름: ${userName}\n• 연락처: ${phoneNumber}\n• 이용약관·개인정보·제3자 제공 동의 완료\n\n✅ 전문 보험설계사가 직접 연락드려\n   • 무료 보장분석\n   • 맞춤형 간병비 보험 설계안\n   을 무료로 제공해드립니다.\n\n⚠️ 연락을 받으시겠습니까?\n\n(취소하시면 신청이 되지 않습니다)`;
                         
                         if(!confirm(confirmMessage)) {
                             return; // 사용자가 취소하면 아무것도 하지 않음
@@ -2535,8 +2644,8 @@ export default function Home() {
                                 total,
                                 grade,
                                 futureSelfPay,
-                                agree1: chk1?.checked,
-                                agree2: chk2?.checked,
+                                agree1,
+                                agree2,
                             });
 
                             const response = await fetch('/api/send-email', {
@@ -2547,8 +2656,10 @@ export default function Home() {
                                 body: JSON.stringify({
                                     userName,
                                     phoneNumber,
-                                    // 사용자 기본 정보
+                                    // 사용자 기본 정보 (인트로 생년월일·성별·지역)
                                     birthYear: userProfile.birthYear,
+                                    birthMonth: userProfile.birthMonth,
+                                    birthDay: userProfile.birthDay,
                                     gender: userProfile.gender,
                                     region: userProfile.region,
                                     age: userProfile.age,
@@ -2570,10 +2681,10 @@ export default function Home() {
                                     categoryScores,
                                     // 기타
                                     familyWarning,
-                                    agree0: chk0?.checked, // 이용약관 동의
-                                    agree1: chk1?.checked, // 개인정보 수집 및 이용 동의
-                                    agree2: chk2?.checked, // 마케팅 활용 동의 (선택)
-                                    agree3: chk3?.checked, // 개인정보 제3자 제공 동의 (카카오톡)
+                                    agree0, // 이용약관 동의
+                                    agree1, // 개인정보 수집 및 이용 동의
+                                    agree2, // 마케팅 활용 동의 (선택)
+                                    agree3, // 개인정보 제3자 제공 동의 (카카오톡)
                                 }),
                             });
 
