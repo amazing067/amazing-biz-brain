@@ -17,7 +17,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (e: unknown) {
     const err = e as Error;
+    const msg = err?.message ?? '';
+    const isChromeMissing = /Could not find Chrome|Failed to launch|Executable doesn't exist|no such file.*chrome/i.test(msg);
+    if (isChromeMissing) {
+      return NextResponse.json(
+        { error: '이 환경에서는 Chrome을 사용할 수 없어 이미지 생성이 불가합니다. 로컬 또는 Chrome 설치된 서버에서 이용해 주세요.', code: 'CHROME_UNAVAILABLE' },
+        { status: 503 }
+      );
+    }
     console.error('[generate-report-diagram-image]', e);
-    return NextResponse.json({ error: '이미지 생성 실패', details: err?.message }, { status: 500 });
+    return NextResponse.json({ error: '이미지 생성 실패', details: msg }, { status: 500 });
   }
 }

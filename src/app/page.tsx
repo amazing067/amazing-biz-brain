@@ -2893,7 +2893,7 @@ export default function Home() {
           <div className="w-full text-center mb-2">
             <span className="text-lg font-bold text-gray-500">문제 {q.id}/{QUIZ_QUESTIONS.length}</span>
           </div>
-          <h2 className={`${q.type === 'serial-subtraction' || q.type === 'complex-calculation' ? 'text-3xl sm:text-4xl font-black' : 'text-2xl font-bold'} text-center whitespace-pre-line leading-relaxed text-gray-800`}>
+          <h2 className={`${q.type === 'serial-subtraction' || q.type === 'complex-calculation' ? 'text-2xl sm:text-3xl font-black break-keep' : 'text-2xl font-bold'} text-center whitespace-pre-line leading-relaxed text-gray-800 max-w-full`}>
             {q.questionText}
           </h2>
 

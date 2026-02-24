@@ -1,9 +1,40 @@
 /**
  * 보고서 다이어그램·월 예상 금액 분석을 PNG로 만들기 위한 HTML 생성
  * (신청 버튼과 무관, 관리자/API에서만 사용)
+ * - 서버에 Chrome이 없어도 서버리스용 Chromium 번들(@sparticuz/chromium)로 동작
+ * - PUPPETEER_EXECUTABLE_PATH 설정 시 해당 Chrome/Chromium 사용
  */
 import puppeteer from 'puppeteer';
+import puppeteerCore from 'puppeteer-core';
 import { getConcreteTipForCategory } from './report-analysis';
+
+const DEFAULT_ARGS = [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-dev-shm-usage',
+  '--disable-gpu',
+  '--single-process',
+  '--no-zygote',
+];
+
+function isServerless(): boolean {
+  return process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME != null || process.cwd().startsWith('/var/task');
+}
+
+/** 서버/서버리스에 맞는 브라우저 실행 옵션 반환 */
+async function getLaunchOptions(): Promise<{ executablePath: string; args: string[] } | null> {
+  const envPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (envPath) {
+    return { executablePath: envPath, args: DEFAULT_ARGS };
+  }
+  if (isServerless()) {
+    const chromium = await import('@sparticuz/chromium');
+    const executablePath = await chromium.default.executablePath();
+    const args = chromium.default.args ?? DEFAULT_ARGS;
+    return { executablePath, args };
+  }
+  return null;
+}
 
 function getDiagramHTML(data: Record<string, unknown>): string {
   const categoryScores = (data.categoryScores || {}) as Record<string, { percent?: number; max?: number }>;
@@ -127,17 +158,17 @@ function getCostAnalysisHTML(data: Record<string, unknown>): string {
 }
 
 async function htmlToPng(html: string, viewport = { width: 400, height: 420 }): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process',
-      '--no-zygote',
-    ],
-  });
+  const launchOpts = await getLaunchOptions();
+  const browser = launchOpts
+    ? await puppeteerCore.launch({
+        headless: true,
+        executablePath: launchOpts.executablePath,
+        args: launchOpts.args,
+      })
+    : await puppeteer.launch({
+        headless: true,
+        args: DEFAULT_ARGS,
+      });
   try {
     const page = await browser.newPage();
     page.setDefaultTimeout(60000);
@@ -154,24 +185,24 @@ async function htmlToPng(html: string, viewport = { width: 400, height: 420 }): 
 
 /** 콘텐츠 높이에 딱 맞춰 스크린샷 (하단 빈 여백 없음). .page 기준으로 측정 */
 async function htmlToPngContentHeight(html: string, width: number): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process',
-      '--no-zygote',
-    ],
-  });
+  const launchOpts = await getLaunchOptions();
+  const browser = launchOpts
+    ? await puppeteerCore.launch({
+        headless: true,
+        executablePath: launchOpts.executablePath,
+        args: launchOpts.args,
+      })
+    : await puppeteer.launch({
+        headless: true,
+        args: DEFAULT_ARGS,
+      });
   try {
     const page = await browser.newPage();
     page.setDefaultTimeout(60000);
     await page.setViewport({ width, height: 2400, deviceScaleFactor: 2 });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
     await new Promise((r) => setTimeout(r, 500));
-    const contentHeight = await page.evaluate(() => {
+    const contentHeight = await (page.evaluate as (fn: () => number) => Promise<number>)(() => {
       const pageEl = document.querySelector('.page') as HTMLElement | null;
       const h = pageEl ? pageEl.scrollHeight : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
       return Math.min(Math.max(Math.ceil(h) + 4, 500), 5000);

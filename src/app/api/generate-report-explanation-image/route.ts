@@ -125,13 +125,17 @@ export async function POST(request: NextRequest) {
     });
   } catch (e: unknown) {
     const err = e as Error;
+    const msg = err?.message ?? String(e);
+    const isChromeMissing = /Could not find Chrome|Failed to launch|Executable doesn't exist|no such file.*chrome/i.test(msg);
+    if (isChromeMissing) {
+      return NextResponse.json(
+        { error: '이 환경에서는 Chrome을 사용할 수 없어 이미지 생성이 불가합니다. 로컬 또는 Chrome 설치된 서버에서 이용해 주세요.', code: 'CHROME_UNAVAILABLE' },
+        { status: 503 }
+      );
+    }
     console.error('[generate-report-explanation-image]', e);
-    const details = err?.message || String(e);
-    const hint = details.includes('launch') || details.includes('browser')
-      ? ' Puppeteer/Chrome 실행 실패일 수 있습니다. npm install puppeteer 후 재시도하거나, 서버에 Chrome이 설치되어 있는지 확인하세요.'
-      : '';
     return NextResponse.json(
-      { error: '부가 설명 이미지 생성 실패', details: details + hint },
+      { error: '부가 설명 이미지 생성 실패', details: msg },
       { status: 500 }
     );
   }

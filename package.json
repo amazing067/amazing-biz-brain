@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@sparticuz/chromium": "^143.0.4",
     "@types/nodemailer": "^7.0.5",
     "@types/puppeteer": "^5.4.7",
     "lucide-react": "^0.562.0",
@@ -19,6 +20,7 @@
     "nodemailer": "^7.0.12",
     "pdf-lib": "^1.17.1",
     "puppeteer": "^24.37.2",
+    "puppeteer-core": "^24.37.5",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },

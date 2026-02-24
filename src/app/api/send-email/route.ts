@@ -460,26 +460,32 @@ export async function POST(request: NextRequest) {
     const mailResult = await transporter.sendMail(mailOptions);
     console.log('✅ [API] 이메일 전송 성공!', { messageId: mailResult.messageId });
 
-    // 신청 목록을 프로젝트 data/applicants.json 에 추가
-    try {
-      const dataDir = join(process.cwd(), 'data');
-      const applicantsPath = join(dataDir, 'applicants.json');
-      const appliedAt = new Date().toISOString();
-      const entry = { appliedAt, ...reportDataForJson };
-
-      let list: unknown[] = [];
+    // 신청 목록을 프로젝트 data/applicants.json 에 추가 (쓰기 가능한 환경에서만)
+    const canWriteFs =
+      process.env.VERCEL !== '1' &&
+      process.env.AWS_LAMBDA_FUNCTION_NAME == null &&
+      !process.cwd().startsWith('/var/task');
+    if (canWriteFs) {
       try {
-        const raw = await readFile(applicantsPath, 'utf-8');
-        const parsed = JSON.parse(raw);
-        list = Array.isArray(parsed) ? parsed : [];
-      } catch {
-        await mkdir(dataDir, { recursive: true }).catch(() => {});
+        const dataDir = join(process.cwd(), 'data');
+        const applicantsPath = join(dataDir, 'applicants.json');
+        const appliedAt = new Date().toISOString();
+        const entry = { appliedAt, ...reportDataForJson };
+
+        let list: unknown[] = [];
+        try {
+          const raw = await readFile(applicantsPath, 'utf-8');
+          const parsed = JSON.parse(raw);
+          list = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          await mkdir(dataDir, { recursive: true }).catch(() => {});
+        }
+        list.push(entry);
+        await writeFile(applicantsPath, JSON.stringify(list, null, 2), 'utf-8');
+        console.log('✅ [API] 신청 목록 저장:', applicantsPath);
+      } catch (fileErr) {
+        console.warn('⚠️ [API] 신청 목록 파일 저장 실패 (이메일은 전송됨):', fileErr);
       }
-      list.push(entry);
-      await writeFile(applicantsPath, JSON.stringify(list, null, 2), 'utf-8');
-      console.log('✅ [API] 신청 목록 저장:', applicantsPath);
-    } catch (fileErr) {
-      console.warn('⚠️ [API] 신청 목록 파일 저장 실패 (이메일은 전송됨):', fileErr);
     }
 
     return NextResponse.json({ success: true, message: '이메일이 성공적으로 전송되었습니다.' });
