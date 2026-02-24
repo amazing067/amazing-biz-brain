@@ -614,11 +614,11 @@ function getExplanationHTML(data: Record<string, unknown>, content: ReportConten
       background: #fef2f2;
       border: 1px solid #fecaca;
       border-radius: 8px;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 600;
       color: #b91c1c;
       text-align: center;
-      line-height: 1.5;
+      line-height: 1.4;
     }
     .analysis-summary-strip {
       display: flex; align-items: center; gap: 12px; flex-wrap: wrap;

@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { generateExplanationPng, type ReportContent } from '../../../lib/report-images';
-import { analyzeReport, getCostBreakdownExplanationOnly, getCostBreakdownExplanationShort, enrichProblemAreasWithConcreteTips } from '../../../lib/report-analysis';
+import { analyzeReport, getCostBreakdownExplanationShort, enrichProblemAreasWithConcreteTips } from '../../../lib/report-analysis';
 
 export const maxDuration = 60;
 
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         pageTitle: '분석 결과',
         pageSubtitle: `${userName} 님 · 다음 단계·주의사항`,
         showStagePill: true,
-        disclaimerText,
+        disclaimerText: '', // 부가설명2에는 하단 안내 문구 생략 (본문에 이미 있음)
       };
     } else {
       content = {
