@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       .map((s: { body?: string }) => String(s?.body ?? '').trim())
       .filter(Boolean)
       .join(' ');
-    const defaultDisclaimer = '본 검사는 선별 목적이며, 확진이 아닙니다. 결과는 참고용이며, 진단·치료를 대체하지 않습니다.';
+    const defaultDisclaimer = '본 검사는 다수의 치매·인지 검사 항목을 기반으로 구성되었으며, 점수·해석은 검사 규준·매뉴얼 및 의료진 해석에 맞춰 안내합니다. 선별 목적이며 확진이 아닙니다. 결과는 참고용이며, 진단·치료를 대체하지 않습니다.';
     const disclaimerText = disclaimerFromContent || defaultDisclaimer;
 
     if (part === 1) {

@@ -171,9 +171,9 @@ function generateReportHTML(data: any): string {
     </div>
   </div>
 
-  <!-- 3. 인지 기능 프로필 (다이어그램) - 상세 버전 -->
+  <!-- 3. 인지 기능 (다이어그램) - 상세 버전 -->
   <div class="page">
-    <h2>📈 인지 기능 프로필 (다이어그램)</h2>
+    <h2>📈 인지 기능</h2>
     <div class="diagram-container">
       <svg viewBox="0 0 320 320" class="diagram-svg">
         ${[0.25, 0.5, 0.75, 1].map((ratio) => {
@@ -204,7 +204,7 @@ function generateReportHTML(data: any): string {
     
     <!-- 상세 설명 추가 -->
     <div style="margin-top: 24px; padding: 16px; background-color: #f0f9ff; border-radius: 8px; border-left: 4px solid #0284c7;">
-      <h3 style="font-size: 16px; font-weight: 700; color: #0c4a6e; margin-bottom: 8px;">📋 인지 기능 프로필 해석</h3>
+      <h3 style="font-size: 16px; font-weight: 700; color: #0c4a6e; margin-bottom: 8px;">📋 인지 기능 해석</h3>
       <ul style="color: #075985; font-size: 13px; line-height: 1.8; padding-left: 20px;">
         ${categories.map(([cat]: any) => {
           const s = data.categoryScores[cat];

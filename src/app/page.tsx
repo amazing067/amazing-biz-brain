@@ -1244,6 +1244,7 @@ const calculateFinancials = (score: number) => {
   let careType = '';   
   let careCostDesc = '';
 
+  // 점수→등급: 검사 난이도·규준 반영. 70점대는 인지지원등급(경미한 인지 저하) 구간으로 둠.
   if (score <= 35) {
     grade = '1등급 (최중증/와상)';
     limitAmount = 2512900; // 2026년 인상분 반영 (약 251만원)
@@ -1256,27 +1257,21 @@ const calculateFinancials = (score: number) => {
     status = '상당 부분 도움 필요';
     careType = '요양원(시설) 입소 또는 방문요양';
     careCostDesc = '시설 급여 본인부담금 + 비급여 식대';
-  } else if (score <= 65) {
+  } else if (score <= 59) {
     grade = '3등급 (중등도)';
     limitAmount = 1528200; // 2026년 인상분 반영
     status = '부분적 도움 필요';
     careType = '주야간보호센터 + 방문요양';
     careCostDesc = '센터 이용료(15%) + 식대';
-  } else if (score <= 75) {
+  } else if (score <= 69) {
     grade = '4등급 (경증)';
     limitAmount = 1409700; // 2026년 인상분 반영
     status = '일정 부분 도움 필요';
     careType = '주야간보호센터 이용';
     careCostDesc = '센터 이용료(15%) + 식대';
-  } else if (score <= 85) {
-    grade = '5등급 (치매환자)';
-    limitAmount = 1208900; // 2026년 인상분 반영
-    status = '치매 특별 등급';
-    careType = '인지활동형 방문요양';
-    careCostDesc = '인지자극 프로그램 + 방문요양';
   } else if (score <= 92) {
     grade = '인지지원등급';
-    limitAmount = 657400; // 2025년 인지지원등급 재가급여 월 한도 (보건복지부 고시)
+    limitAmount = 676320; // 2026년 인지지원등급 재가급여 월 한도 (보건복지부 고시)
     status = '경미한 인지 저하';
     careType = '주야간보호(치매전담) 이용';
     careCostDesc = '예방 프로그램 + 복지용구';
@@ -1315,14 +1310,13 @@ const calculateFinancials = (score: number) => {
     const facilityLimit = Math.round(limitAmount * 1.1); 
     coPay = Math.round(facilityLimit * 0.2); // 시설 본인부담 20%
     nonCoveredCost = 600000; // 식대, 간식비, 상급침실료 (물가상승 반영)
-  } else if (score <= 85) {
-    // [3,4,5등급] 재가/데이케어 이용
-    // 한도액 100% 소진 + 식대 + 추가 서비스 이용
-    totalCost = limitAmount + 400000; 
-    coPay = Math.round(limitAmount * 0.15); // 재가 본인부담 15%
-    nonCoveredCost = 400000; // 식대, 간식비, 한도 초과분
+  } else if (score <= 69) {
+    // [3·4등급] 재가/데이케어 이용
+    totalCost = limitAmount + 400000;
+    coPay = Math.round(limitAmount * 0.15);
+    nonCoveredCost = 400000;
   } else if (score <= 92) {
-    // [인지지원등급]
+    // [인지지원등급] 70~92점 구간
     totalCost = limitAmount + 300000;
     coPay = Math.round(limitAmount * 0.15);
     nonCoveredCost = 300000;
@@ -1333,9 +1327,12 @@ const calculateFinancials = (score: number) => {
     nonCoveredCost = 200000;
   }
 
-  // 실질적 본인 부담금 (총비용 - 정부지원 추산액)
-  // * 1등급(요양병원)의 경우 장기요양한도가 아니라 건강보험 지원을 제외한 금액
-  const realGovSupport = score <= 35 ? 1800000 : limitAmount; 
+  // 국가 실제 지급액(지원금): 한도 전액이 아니라 본인부담 제외한 금액. 그래야 실제 본인 부담금 = ①+② 와 일치
+  // 1등급: 건강보험 추산, 2등급: 시설 20% 본인부담 → 80% 지급, 3~5등급·인지지원: 재가 15% 본인부담 → 85% 지급
+  let realGovSupport = limitAmount;
+  if (score <= 35) realGovSupport = 1800000;
+  else if (score <= 50) realGovSupport = Math.round((limitAmount * 1.1) * 0.8); // 시설 한도의 80%
+  else if (score <= 92) realGovSupport = Math.round(limitAmount * 0.85);        // 재가 한도의 85%
   const finalSelfPay = totalCost - realGovSupport;
 
   // 3. 미래 가치 산출 (10년 뒤, 연 물가상승률 4% 가정 - 간병비는 더 빨리 오름)
@@ -1361,16 +1358,15 @@ const calculateFinancials = (score: number) => {
     baseMedical = 2080000;   // 2025년 2등급 월 한도액 반영
     baseLiving = 500000;     // 식대/상급침실료 (비급여)
     futureGovSupportRate = 0.8;    // 시설급여 80% 지원
-  } else if (score <= 85) { // 재가 (3~5등급, 센터)
-    // 통계: 2025년 재가 3~5등급 월 한도 117만~148만원, 본인부담 15%
-    baseCaregiver = 0;       // 가족 돌봄 가정
+  } else if (score <= 69) { // 재가 (3·4등급)
+    baseCaregiver = 0;
     baseMedical = 1500000;   // 재가 급여 한도 (중간 등급 기준)
-    baseLiving = 300000;     // 식비 등 (비급여)
-    futureGovSupportRate = 0.85;   // 재가급여 85% 지원
-  } else if (score <= 92) { // 인지지원등급
-    // 통계: 2025년 인지지원등급 재가급여 월 한도 657,400원 (보건복지부 고시)
+    baseLiving = 300000;
+    futureGovSupportRate = 0.85;
+  } else if (score <= 92) { // 인지지원등급 (70~92점)
+    // 통계: 2026년 인지지원등급 재가급여 월 한도 676,320원 (보건복지부 고시)
     baseCaregiver = 0;       // 가족 돌봄 가정
-    baseMedical = 657400;    // 2025년 인지지원등급 월 한도액
+    baseMedical = 676320;    // 2026년 인지지원등급 월 한도액
     baseLiving = 300000;     // 식비 등 (비급여)
     futureGovSupportRate = 0.85;   // 재가급여 85% 지원
   } else {
@@ -1380,18 +1376,23 @@ const calculateFinancials = (score: number) => {
     futureGovSupportRate = 0;
   }
 
-  // 미래 가치 환산
+  // 미래 가치 환산: 2026년 총비용·국가지원·본인부담에 물가상승률(1.48배) 적용 → 10년 뒤엔 본인 부담도 약 1.5배
+  const futureTotalCost = Math.round(totalCost * inflation);
+  const futureGovSupport = Math.round(realGovSupport * inflation);
+  const futureSelfPay = Math.round(finalSelfPay * inflation);
+
   const futureCaregiver = Math.round(baseCaregiver * inflation);
   const futureMedical = Math.round(baseMedical * inflation);
   const futureLiving = Math.round(baseLiving * inflation);
-  
-  const futureTotalCost = futureCaregiver + futureMedical + futureLiving;
-  
-  // 지원금 계산 (간병비는 지원 제외가 핵심)
-  const futureGovSupport = Math.round(futureMedical * futureGovSupportRate);
-  
-  // 내가 낼 돈
-  const futureSelfPay = futureTotalCost - futureGovSupport;
+  const detailSum = futureCaregiver + futureMedical + futureLiving;
+  const scale = detailSum > 0 ? futureTotalCost / detailSum : 1;
+  const dCare = Math.round(futureCaregiver * scale);
+  const dMed = Math.round(futureMedical * scale);
+  const futureDetails = {
+    caregiver: dCare,
+    medical: dMed,
+    living: Math.max(0, futureTotalCost - dCare - dMed)
+  };
 
   return { 
     grade, 
@@ -1403,17 +1404,11 @@ const calculateFinancials = (score: number) => {
     coPay, 
     nonCoveredCost, 
     finalSelfPay,
-    // 미래 비용 관련
     futureYears,
     futureTotalCost,
     futureGovSupport,
-    futureSelfPay: futureSelfPay,
-    // 상세 내역 리턴
-    futureDetails: {
-      caregiver: futureCaregiver,
-      medical: futureMedical,
-      living: futureLiving
-    }
+    futureSelfPay,
+    futureDetails
   };
 };
 
@@ -2154,7 +2149,18 @@ export default function Home() {
   // [결과 화면 렌더링] ★ 여기가 핵심 수정 부분입니다 ★
   // --------------------------------------------------------------------------
   if (step >= QUIZ_QUESTIONS.length) {
-    const { total, details, maxDetails } = calculateResult();
+    let { total, details, maxDetails } = calculateResult();
+    // 테스트 모드: ?test=result 일 때 총점을 70점으로 고정해 60~79(보통) 구간 문구 확인용
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('test') === 'result') {
+      const targetTotal = 70;
+      if (total !== targetTotal && total > 0) {
+        const scale = targetTotal / total;
+        total = targetTotal;
+        details = Object.fromEntries(
+          Object.entries(details).map(([c, v]) => [c, Math.round((v as number) * scale)])
+        ) as typeof details;
+      }
+    }
     const financials = calculateFinancials(total);
     const { 
       grade, 
@@ -2251,23 +2257,9 @@ export default function Home() {
                     </div>
                 </div>
 
-                {/* 내 돈 (빨간색 - 강조) */}
+                {/* ①·② 상세 → 실제 본인 부담금 (맨 아래, ①·② 포함 표기) */}
                 <div>
-                    <div className="flex justify-between text-xs mb-1 items-end">
-                        <span className="text-red-600 font-bold flex items-center gap-1">
-                            실제 본인 부담금 <span className="text-[9px] bg-red-100 px-1 rounded">월</span>
-                        </span>
-                        <span className="text-xl font-black text-red-600">
-                            {finalSelfPay.toLocaleString()}원
-                        </span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-3 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10"></div>
-                        <div className="h-full bg-red-500 rounded-full" style={{ width: '100%' }}></div>
-                    </div>
-                    
-                    {/* 상세 내역 (근거 제시) */}
-                    <div className="bg-red-50 p-2 rounded-lg mt-1.5 space-y-0.5">
+                    <div className="bg-red-50 p-2 rounded-lg space-y-0.5 mb-1.5">
                         <div className="flex justify-between text-[10px] text-gray-600">
                             <span>① 법정 본인부담금</span>
                             <span>{coPay.toLocaleString()}원</span>
@@ -2276,6 +2268,18 @@ export default function Home() {
                             <span>② 비급여 (식대/간병비)</span>
                             <span>+{nonCoveredCost.toLocaleString()}원</span>
                         </div>
+                    </div>
+                    <div className="flex justify-between text-xs mb-1 items-end">
+                        <span className="text-red-600 font-bold flex items-center gap-1">
+                            실제 본인 부담금 (월) <span className="text-[9px] text-red-600/80">※ 위 ①·② 포함</span>
+                        </span>
+                        <span className="text-xl font-black text-red-600">
+                            {finalSelfPay.toLocaleString()}원
+                        </span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-3 relative overflow-hidden">
+                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10"></div>
+                        <div className="h-full bg-red-500 rounded-full" style={{ width: '100%' }}></div>
                     </div>
                 </div>
             </div>
@@ -2364,7 +2368,9 @@ export default function Home() {
                             <span className="text-lg font-black text-red-600">{((futureDetails?.caregiver) || 0).toLocaleString()}원</span>
                         </div>
                         <p className="text-[10px] text-red-700 font-bold mt-1 bg-red-100 px-2 py-1 rounded">
-                            ⚠️ 정부 지원 없음 (100% 본인 부담) | 실손보험 비적용
+                            {((futureDetails?.caregiver) || 0) === 0
+                              ? '▲ 주야간보호·재가 이용 시 별도 간병인 고용비가 없을 수 있어 0원으로 표기됩니다. 필요 시 치매·간병 보험으로 준비하세요.'
+                              : '⚠️ 정부 지원 없음 (100% 본인 부담) | 실손보험 비적용'}
                         </p>
                     </div>
                     

@@ -21,13 +21,21 @@ export function generatePages34HTML(data: Record<string, unknown>): string {
   const avgBarWidth = Math.min(100, (ageAvg / 100) * 100);
 
   const recommendMsg =
-    total >= 80
-      ? '현재 인지 기능이 양호한 편입니다. 꾸준한 관리와 예방 습관을 유지해 주세요.'
-      : total >= 60
-        ? '전반적으로 정상 범위에 가깝습니다. 주기적인 검진으로 변화를 살펴보시는 것을 권장합니다.'
-        : total >= 40
-          ? '특정 영역에서 점수가 다소 낮게 나왔을 수 있습니다. 정밀 검사나 전문의 상담을 고려해 보세요.'
-          : '현재 특정 영역에서 점수가 낮게 측정되었습니다. 이는 자연스러운 노화일 수 있으나, 정밀한 추적 관찰이 필요한 시점입니다.';
+    total >= 90
+      ? '현재 인지 기능이 같은 나이대에서 매우 양호한 편입니다. 규칙적인 생활과 사회 참여를 이어가시고, 1년에 1회 정기 검진으로 변화를 확인해 주세요.'
+      : total >= 80
+        ? '현재 인지 기능이 양호한 편입니다. 꾸준한 관리와 예방 습관을 유지하시고, 실손·간병 보험 점검도 해 두시면 좋습니다.'
+        : total >= 70
+          ? '전반적으로 정상 범위에 가깝고 무리 없는 수준입니다. 6개월~1년 주기로 검진받으시며 추이를 살펴보시고, 간병·장기요양 보험 상담을 한 번 받아 보시는 것을 권장합니다.'
+          : total >= 60
+            ? '전반적으로 정상 범위에 가깝습니다. 일부 영역만 보완하면 좋은 수준이니, 주기적인 검진과 일상에서의 인지 활동(독서, 대화, 메모 등)을 권장합니다.'
+            : total >= 50
+              ? '일부 영역이 다소 낮게 나왔을 수 있습니다. 정밀 검사나 전문의 상담으로 원인을 확인하시고, 점검 영역에 맞춘 훈련과 보험 설계를 고려해 보세요.'
+              : total >= 40
+                ? '여러 영역을 점검해 보시는 것이 좋습니다. 경도인지장애 가능성을 배제하기 위해 인지 정밀 검사와 보험·돌봄 계획 상담을 함께 진행하시면 도움이 됩니다.'
+                : total >= 20
+                  ? '정밀 검사·상담이 권장되는 구간입니다. 가능한 빨리 전문 기관을 방문하시고, 가족과 함께 돌봄·경제 부담 준비를 논의하시기 바랍니다.'
+                  : '즉각적인 정밀 검사와 상담이 권장됩니다. 의료기관 방문과 보험·지원 제도 상담을 받으시고, 가족과 돌봄 계획을 함께 정리하시기 바랍니다.';
 
   const categoryScores = (data.categoryScores || {}) as Record<string, { percent?: number; max?: number }>;
   const categories = Object.entries(categoryScores).filter(([, v]) => (v?.max ?? 0) > 0);
@@ -134,7 +142,7 @@ export function generatePages34HTML(data: Record<string, unknown>): string {
         <div class="block caution">😢 주의 (40~20점)<br/><span style="font-size: 11px;">주의 관찰 필요</span></div>
         <div class="block caution">🚨 위험 (20~0점)<br/><span style="font-size: 11px;">고위험군·정밀 검사 권장</span></div>
       </div>
-      <p style="font-size: 13px; font-weight: 700; color: #374151; margin: 16px 0 8px 0;">인지 기능 프로필 (육각형 다이어그램)</p>
+      <p style="font-size: 13px; font-weight: 700; color: #374151; margin: 16px 0 8px 0;">인지 기능</p>
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center;">
         <svg viewBox="0 0 340 340" style="width: 100%; max-width: 300px; height: auto;">
           ${[0.25, 0.5, 0.75, 1].map((ratio) => `<polygon points="${axisLines.map((ap) => `${cx + (ap.x - cx) * ratio},${cy + (ap.y - cy) * ratio}`).join(' ')}" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>`).join('')}
@@ -166,7 +174,7 @@ export function generatePages34HTML(data: Record<string, unknown>): string {
     </div>
     <div class="content-box">
       <div class="grey-box">
-        <p style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">예상 장기요양 등급</p>
+        <p style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">본 검사 예상 등급 <span style="font-size: 10px; color: #9ca3af;">(공단 판정 아님)</span></p>
         <p style="font-size: 16px; font-weight: 800; color: #111; margin-bottom: 4px;">${gradeLabel}</p>
         <p style="font-size: 12px; color: #1d4ed8; margin-bottom: 16px;">인지지원 월 한도: ${limitStr}</p>
         <hr style="border: none; border-top: 1px solid #d1d5db; margin: 12px 0;" />
@@ -174,17 +182,12 @@ export function generatePages34HTML(data: Record<string, unknown>): string {
         <table style="font-size: 12px;">
           <tr><td style="background: #f9fafb; width: 50%;">총 월 예상 비용</td><td class="text-right">${(finalSelfPay + realGovSupport).toLocaleString()}원</td></tr>
           <tr><td style="background: #eff6ff;">국가 지원금 (최대)</td><td class="text-right text-blue-700">${realGovSupport.toLocaleString()}원</td></tr>
-          <tr><td style="background: #fef2f2;">실제 본인 부담금 (월)</td><td class="text-right font-bold text-red-600">${finalSelfPay.toLocaleString()}원</td></tr>
           <tr><td style="padding-left: 20px;">① 법정 본인부담금</td><td class="text-right">${coPay.toLocaleString()}원</td></tr>
           <tr><td style="padding-left: 20px;">② 비급여 (식대/간병비 등)</td><td class="text-right">+${nonCoveredCost.toLocaleString()}원</td></tr>
+          <tr><td style="background: #fef2f2;">실제 본인 부담금 (월) <span style="font-size: 10px; color: #b91c1c;">※ 위 ①·② 포함</span></td><td class="text-right font-bold text-red-600">${finalSelfPay.toLocaleString()}원</td></tr>
         </table>
         <p style="font-size: 10px; color: #9ca3af; margin-top: 6px;">📋 2026년 장기요양 수가 고시 기준 반영</p>
-        <p style="font-size: 13px; font-weight: 800; color: #111; margin: 18px 0 8px 0;">📊 10년 후 (2036년) 월 예상 비용 · 물가상승 반영</p>
-        <table style="font-size: 12px;">
-          <tr><td style="background: #f9fafb;">총 월 예상 비용 (2036년)</td><td class="text-right">${futureTotalCost.toLocaleString()}원</td></tr>
-          <tr><td style="background: #eff6ff;">국가 지원금 (예상)</td><td class="text-right text-blue-700">${futureGovSupport.toLocaleString()}원</td></tr>
-          <tr><td style="background: #fef2f2;">실제 본인 부담금 (월)</td><td class="text-right font-bold text-red-600">${futureSelfPay.toLocaleString()}원</td></tr>
-        </table>
+        <p style="font-size: 13px; font-weight: 800; color: #111; margin: 18px 0 4px 0;">📊 10년 후 (2036년) 월 예상 비용 · 물가상승 반영</p>
         <p style="font-size: 11px; font-weight: 700; color: #374151; margin: 10px 0 4px 0;">🧾 비용 산출 상세 내역 (월 기준)</p>
         <table style="font-size: 11px;">
           <tr><td style="background: #fef2f2;">① 사적 간병비 (인건비) 최대 부담</td><td class="text-right font-bold">${(details.caregiver || 0).toLocaleString()}원</td></tr>

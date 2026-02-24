@@ -129,9 +129,9 @@ function ReportPageContent() {
           </div>
         </section>
 
-        {/* 3. 인지 기능 프로필 (다이어그램) */}
+        {/* 3. 인지 기능 (다이어그램) */}
         <section className="print:break-before-page print:break-after-page">
-          <h2 className="text-lg font-bold border-b border-gray-300 pb-2 mb-4">📈 인지 기능 프로필 (다이어그램)</h2>
+          <h2 className="text-lg font-bold border-b border-gray-300 pb-2 mb-4">📈 인지 기능</h2>
           <div className="flex justify-center">
             <svg viewBox="0 0 320 320" className="w-full max-w-[320px] h-auto">
               {[0.25, 0.5, 0.75, 1].map((ratio, idx) => (

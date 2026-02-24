@@ -75,7 +75,7 @@ function getDiagramHTML(data: Record<string, unknown>): string {
 </head>
 <body>
   <div class="wrap">
-    <h2>인지 기능 프로필 (육각형 다이어그램)</h2>
+    <h2>인지 기능</h2>
     <svg viewBox="0 0 340 340" style="width: 320px; height: 320px;">
       ${[0.25, 0.5, 0.75, 1].map((ratio) => `<polygon points="${axisLines.map((ap) => `${cx + (ap.x - cx) * ratio},${cy + (ap.y - cy) * ratio}`).join(' ')}" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>`).join('')}
       ${axisLines.map((ap) => `<line x1="${cx}" y1="${cy}" x2="${ap.x}" y2="${ap.y}" stroke="#cbd5e1" stroke-width="1.5"/>`).join('')}
@@ -100,64 +100,164 @@ function getCostAnalysisHTML(data: Record<string, unknown>): string {
   const limitAmount = (data.limitAmount as number) ?? 0;
   const limitStr = limitAmount > 0 ? `${(limitAmount / 10000).toFixed(0)}만원 (${limitAmount.toLocaleString()}원)` : '해당 없음 (등급 외)';
   const details = (data.futureDetails || { caregiver: 0, medical: 0, living: 0 }) as { caregiver?: number; medical?: number; living?: number };
-  const finalSelfPay = (data.finalSelfPay as number) ?? 0;
-  const realGovSupport = (data.realGovSupport as number) ?? 0;
+  const careType = (data.careType as string) || '주야간보호센터 이용';
+  let finalSelfPay = (data.finalSelfPay as number) ?? 0;
+  let realGovSupport = (data.realGovSupport as number) ?? 0;
   const coPay = (data.coPay as number) ?? 0;
   const nonCoveredCost = (data.nonCoveredCost as number) ?? 0;
-  const futureTotalCost = (data.futureTotalCost as number) ?? 0;
-  const futureGovSupport = (data.futureGovSupport as number) ?? 0;
-  const futureSelfPay = (data.futureSelfPay as number) ?? 0;
+  let futureTotalCost = (data.futureTotalCost as number) ?? 0;
+  let futureGovSupport = (data.futureGovSupport as number) ?? 0;
+  let futureSelfPay = (data.futureSelfPay as number) ?? 0;
+
+  const sum12 = coPay + nonCoveredCost;
+  const totalCost2026 = finalSelfPay + realGovSupport;
+  if (sum12 > 0 && limitAmount > 0 && Math.abs(finalSelfPay - sum12) > 1) {
+    finalSelfPay = sum12;
+    realGovSupport = totalCost2026 - finalSelfPay;
+  }
+  if (futureTotalCost > 0 && futureGovSupport > 0) {
+    const futureSelfPayRecalc = futureTotalCost - futureGovSupport;
+    if (Math.abs(futureSelfPay - futureSelfPayRecalc) > 1) futureSelfPay = futureSelfPayRecalc;
+  }
+
+  const caregiverAmount = details.caregiver ?? 0;
+  const govSupportPct = futureTotalCost > 0 ? Math.min((futureGovSupport / futureTotalCost) * 100, 100) : 0;
 
   return `
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: #f8fafc; padding: 20px; }
-    .wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; max-width: 520px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    h2 { font-size: 18px; color: #111; margin-bottom: 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    td { padding: 10px 12px; border: 1px solid #e5e7eb; }
-    .text-right { text-align: right; }
-    .font-bold { font-weight: 700; }
-    .text-red-600 { color: #dc2626; }
-    .text-blue-700 { color: #1d4ed8; }
-    .small { font-size: 10px; color: #9ca3af; margin-top: 6px; }
+    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: #f1f5f9; padding: 16px; }
+    .page { max-width: 520px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 16px; }
+    .card-2026 { border: 2px solid #dbeafe; }
+    .card-2036 { border: 2px solid #fecaca; }
+    .bar-wrap { height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .bar { height: 100%; border-radius: 999px; }
+    .bar-blue { background: #3b82f6; }
+    .bar-red { background: linear-gradient(90deg, #ef4444, #dc2626); }
+    .badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+    .badge-curr { background: #dbeafe; color: #1d4ed8; }
+    .badge-future { background: #ffedd5; color: #c2410c; }
+    .cost-detail { border-left: 4px solid; padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; }
+    .cost-detail.care { border-color: #dc2626; background: #fef2f2; }
+    .cost-detail.med { border-color: #3b82f6; background: #eff6ff; }
+    .cost-detail.living { border-color: #16a34a; background: #f0fdf4; }
+    .calc-note { font-size: 10px; color: #64748b; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h2>월 예상 금액 분석</h2>
-    <p style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">예상 장기요양 등급: ${gradeLabel}</p>
-    <p style="font-size: 12px; color: #1d4ed8; margin-bottom: 16px;">인지지원 월 한도: ${limitStr}</p>
-    <p style="font-size: 13px; font-weight: 800; color: #111; margin-bottom: 8px;">2026년 월 예상 비용 (현재 기준)</p>
-    <table>
-      <tr><td style="background: #f9fafb;">총 월 예상 비용</td><td class="text-right">${(finalSelfPay + realGovSupport).toLocaleString()}원</td></tr>
-      <tr><td style="background: #eff6ff;">국가 지원금 (최대)</td><td class="text-right text-blue-700">${realGovSupport.toLocaleString()}원</td></tr>
-      <tr><td style="background: #fef2f2;">실제 본인 부담금 (월)</td><td class="text-right font-bold text-red-600">${finalSelfPay.toLocaleString()}원</td></tr>
-      <tr><td style="padding-left: 20px;">① 법정 본인부담금</td><td class="text-right">${coPay.toLocaleString()}원</td></tr>
-      <tr><td style="padding-left: 20px;">② 비급여 (식대/간병비 등)</td><td class="text-right">+${nonCoveredCost.toLocaleString()}원</td></tr>
-    </table>
-    <p class="small">2026년 장기요양 수가 고시 기준 반영</p>
-    <p style="font-size: 13px; font-weight: 800; color: #111; margin: 18px 0 8px 0;">10년 후 (2036년) 월 예상 비용 · 물가상승 반영</p>
-    <table>
-      <tr><td style="background: #f9fafb;">총 월 예상 비용 (2036년)</td><td class="text-right">${futureTotalCost.toLocaleString()}원</td></tr>
-      <tr><td style="background: #eff6ff;">국가 지원금 (예상)</td><td class="text-right text-blue-700">${futureGovSupport.toLocaleString()}원</td></tr>
-      <tr><td style="background: #fef2f2;">실제 본인 부담금 (월)</td><td class="text-right font-bold text-red-600">${futureSelfPay.toLocaleString()}원</td></tr>
-    </table>
-    <p style="font-size: 11px; font-weight: 700; color: #374151; margin: 10px 0 4px 0;">비용 산출 상세 내역 (월 기준)</p>
-    <table>
-      <tr><td style="background: #fef2f2;">① 사적 간병비 (인건비) 최대 부담</td><td class="text-right font-bold">${(details.caregiver || 0).toLocaleString()}원</td></tr>
-      <tr><td>② 병원비/시설비</td><td class="text-right">${(details.medical || 0).toLocaleString()}원</td></tr>
-      <tr><td>③ 식대/소모품 (기저귀 등)</td><td class="text-right">${(details.living || 0).toLocaleString()}원</td></tr>
-      <tr style="background: #f3f4f6;"><td class="font-bold">총 비용 합계 (2036년 예상)</td><td class="text-right font-bold">${futureTotalCost.toLocaleString()}원</td></tr>
-      <tr><td>- 국가 지원금 (예상)</td><td class="text-right text-blue-700">${futureGovSupport.toLocaleString()}원</td></tr>
-      <tr style="background: #fef2f2;"><td class="font-bold">= 실제 본인 부담금</td><td class="text-right font-bold text-red-600">${futureSelfPay.toLocaleString()}원</td></tr>
-    </table>
-    <p class="small" style="margin-top: 8px;">* 2026년 기준 비용 × 물가상승률 1.5배 (연 4% × 10년)</p>
+  <div class="page">
+    <div class="card card-2026">
+      <div style="padding: 16px 18px; border-bottom: 1px solid #e5e7eb;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <div>
+            <h2 style="font-size: 17px; font-weight: 800; color: #1f2937;">월 예상 금액 분석</h2>
+            <p style="font-size: 13px; color: #374151; font-weight: 600; margin-top: 8px; margin-bottom: 4px;">예상 장기요양 등급: ${gradeLabel}</p>
+            <p style="font-size: 13px; color: #1d4ed8; font-weight: 700;">인지지원 월 한도: ${limitStr}</p>
+          </div>
+          <span class="badge badge-curr">현재 기준</span>
+        </div>
+        <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">📊 2026년 월 예상 비용 · 2026년 장기요양 수가 고시 반영</p>
+        <div style="margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+            <span style="font-weight: 700; color: #1d4ed8;">국가 지원금 (최대)</span>
+            <span style="font-weight: 700; color: #1d4ed8;">${realGovSupport.toLocaleString()}원</span>
+          </div>
+          <div class="bar-wrap"><div class="bar bar-blue" style="width: 35%;"></div></div>
+        </div>
+        <div style="background: #fef2f2; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #4b5563;"><span>① 법정 본인부담금</span><span>${coPay.toLocaleString()}원</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #b91c1c;"><span>② 비급여 (식대/간병비)</span><span>+${nonCoveredCost.toLocaleString()}원</span></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
+          <span style="font-size: 12px; font-weight: 700; color: #dc2626;">실제 본인 부담금 (월) <span style="font-size: 10px; opacity: 0.9;">※ 위 ①·② 포함</span></span>
+          <span style="font-size: 22px; font-weight: 800; color: #dc2626;">${finalSelfPay.toLocaleString()}원</span>
+        </div>
+        <div class="bar-wrap" style="height: 10px;"><div class="bar bar-red" style="width: 100%;"></div></div>
+      </div>
+    </div>
+
+    <div class="card card-2036">
+      <div style="background: #dc2626; color: #fff; font-size: 11px; font-weight: 700; text-align: center; padding: 10px 16px;">
+        🚨 10년 후 (2036년) 예상 비용 | 물가상승률 반영
+      </div>
+      <div style="padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="font-size: 15px; font-weight: 800; color: #1f2937;">📉 10년 후 월 예상 간병비</h3>
+          <span class="badge badge-future">미래 예상</span>
+        </div>
+        <p style="font-size: 10px; color: #6b7280; margin-bottom: 14px;">"${careType}" 이용 시 예상 월 지출액</p>
+        <div style="margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+            <span style="font-weight: 700; color: #1d4ed8;">국가 지원금 (예상)</span>
+            <span style="font-weight: 700; color: #1d4ed8;">${futureGovSupport.toLocaleString()}원</span>
+          </div>
+          <div class="bar-wrap" style="height: 10px;"><div class="bar bar-blue" style="width: ${govSupportPct}%;"></div></div>
+        </div>
+        <div style="margin-bottom: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <span style="font-size: 12px; font-weight: 700; color: #dc2626;">실제 본인 부담금</span>
+            <span style="font-size: 24px; font-weight: 800; color: #dc2626;">${futureSelfPay >= 10000 ? `${Math.round(futureSelfPay / 10000)}만원` : `${futureSelfPay.toLocaleString()}원`}</span>
+          </div>
+          <p style="font-size: 10px; color: #6b7280; text-align: right;">${futureSelfPay.toLocaleString()}원</p>
+        </div>
+        <div class="bar-wrap" style="height: 12px; margin-bottom: 16px;"><div class="bar bar-red" style="width: 100%;"></div></div>
+
+        <div style="background: linear-gradient(to bottom, #f8fafc, #f1f5f9); padding: 14px; border-radius: 12px; border: 2px solid #cbd5e1;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #94a3b8;">
+            <span style="font-size: 13px; font-weight: 700; color: #374151;">🧾 비용 산출 상세 내역 (월 기준)</span>
+            <span style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-weight: 700;">물가상승 1.5배 · 연 4%×10년</span>
+          </div>
+          <div class="cost-detail care">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 700; color: #b91c1c;">① 사적 간병비 (인건비) <span style="font-size: 9px; background: #fecaca; padding: 1px 4px; border-radius: 2px;">최대 부담</span></span>
+              <span style="font-size: 16px; font-weight: 800; color: #dc2626;">${caregiverAmount.toLocaleString()}원</span>
+            </div>
+            <p style="font-size: 10px; font-weight: 700; color: #b91c1c; margin-top: 6px; background: #fee2e2; padding: 4px 8px; border-radius: 4px;">
+              ${caregiverAmount === 0
+                ? '▲ 주야간보호·재가 이용 시 별도 간병인 고용비가 없을 수 있어 0원으로 표기됩니다. 필요 시 치매·간병 보험으로 준비하세요.'
+                : '▲ 정부 지원 없음 (100% 본인 부담) | 실손보험 비적용'}
+            </p>
+          </div>
+          <div class="cost-detail med">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 600; color: #374151;">② 병원비/시설비</span>
+              <span style="font-weight: 700;">${(details.medical || 0).toLocaleString()}원</span>
+            </div>
+          </div>
+          <div class="cost-detail living">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 600; color: #374151;">③ 식대/소모품 (기저귀 등)</span>
+              <span style="font-weight: 700;">${(details.living || 0).toLocaleString()}원</span>
+            </div>
+          </div>
+          <div style="background: #e2e8f0; padding: 12px; border-radius: 8px; margin-top: 12px; border: 2px solid #94a3b8;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #94a3b8;">
+              <span style="font-weight: 700;">총 비용 합계 (2036년 예상)</span>
+              <span style="font-size: 15px; font-weight: 800;">${futureTotalCost.toLocaleString()}원</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+              <span style="font-weight: 600; color: #1d4ed8;">- 국가 지원금 (예상)</span>
+              <span style="font-weight: 700; color: #1d4ed8;">${futureGovSupport.toLocaleString()}원</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; margin: 0 -12px -12px -12px; padding: 10px 12px 12px; background: #fef2f2; border-radius: 0 0 6px 6px; border: 2px solid #fecaca; border-top: none;">
+              <span style="font-weight: 700; color: #b91c1c;">= 실제 본인 부담금</span>
+              <span style="font-size: 18px; font-weight: 800; color: #dc2626;">${futureSelfPay.toLocaleString()}원</span>
+            </div>
+          </div>
+          <div class="calc-note">
+            <p style="text-align: right; font-weight: 600;">* 계산 근거:</p>
+            <p style="text-align: right;">2026년 기준 비용 × 물가상승률 1.5배</p>
+            <p style="text-align: right; color: #94a3b8;">(연 평균 4% 상승 × 10년 = 1.04¹⁰ ≈ 1.48배)</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </body>
 </html>
@@ -233,7 +333,108 @@ export async function generateDiagramPng(data: Record<string, unknown>): Promise
 
 export async function generateCostAnalysisPng(data: Record<string, unknown>): Promise<Buffer> {
   const html = getCostAnalysisHTML(data);
-  return htmlToPng(html, { width: 560, height: 720 });
+  return htmlToPngContentHeight(html, 560);
+}
+
+/** 장기요양 국가 지원금 이용·지급 안내 (공식 자료 기준, 데이터 불필요) */
+function getGovSupportGuideHTML(): string {
+  return `
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.5; font-size: 14px; }
+    .page { width: 560px; background: #fff; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; }
+    .top-bar { height: 6px; background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%); border-radius: 8px 8px 0 0; margin: -24px -24px 20px -24px; }
+    h2 { font-size: 18px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+    .sub { font-size: 12px; color: #64748b; margin-bottom: 18px; }
+    .section { margin-bottom: 18px; }
+    .section h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
+    .section p, .section li { font-size: 13px; color: #334155; margin-bottom: 6px; }
+    .section ul { margin-left: 16px; padding-left: 4px; }
+    .section li { margin-bottom: 4px; }
+    .highlight { background: #eff6ff; color: #1d4ed8; font-weight: 700; padding: 0 4px; }
+    .red { color: #dc2626; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+    th, td { padding: 8px 10px; border: 1px solid #e2e8f0; text-align: left; }
+    th { background: #f1f5f9; font-weight: 700; color: #334155; }
+    .source { font-size: 11px; color: #94a3b8; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+    .source-block { font-size: 11px; color: #94a3b8; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; line-height: 1.5; }
+    .source-block p { margin: 0 0 4px 0; }
+    .source-block p:last-child { margin-bottom: 0; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-bar"></div>
+    <h2>장기요양 국가 지원금 이용·지급 안내</h2>
+    <p class="sub">보건복지부·국민건강보험공단 기준 (재가 15% 본인부담, 시설 20% 본인부담)</p>
+
+    <div class="section">
+      <h3>1. 한도액이란?</h3>
+      <p>등급별로 <strong>매월 이용할 수 있는 장기요양 급여 비용의 상한선</strong>입니다. 이 한도 안에서 서비스를 이용하면, 본인은 일부만 부담하고 나머지는 공단(국가)이 부담합니다.</p>
+      <p style="font-size: 12px; font-weight: 700; color: #374151; margin-top: 10px; margin-bottom: 4px;">등급별 재가급여 월 한도액 (2026년 기준 참고)</p>
+      <table>
+        <tr><th>등급</th><th style="text-align: right;">월 한도액</th></tr>
+        <tr><td>1등급 (최중증/와상)</td><td style="text-align: right;">2,512,900원</td></tr>
+        <tr><td>2등급 (중증)</td><td style="text-align: right;">2,331,200원</td></tr>
+        <tr><td>3등급 (중등도)</td><td style="text-align: right;">1,528,200원</td></tr>
+        <tr><td>4등급 (경증)</td><td style="text-align: right;">1,409,700원</td></tr>
+        <tr><td>5등급 (치매 등)</td><td style="text-align: right;">1,208,900원</td></tr>
+        <tr><td>인지지원등급</td><td style="text-align: right;">676,320원</td></tr>
+      </table>
+      <p style="font-size: 11px; color: #64748b; margin-top: 6px;">※ 장기요양 수가 고시에 따라 변경될 수 있습니다.</p>
+    </div>
+
+    <div class="section">
+      <h3>2. 국가 지원금은 어떻게 나오나요?</h3>
+      <p>서비스를 <strong>이용한 만큼</strong> 요금이 청구되고, 그중 <span class="highlight">본인 부담률만 납부</span>하면 됩니다. 나머지는 기관에 <strong>공단이 직접 지급</strong>합니다.</p>
+      <table>
+        <tr><th>구분</th><th>본인 부담</th><th>공단(국가) 부담</th></tr>
+        <tr><td>재가급여 (방문요양·데이케어 등)</td><td class="red">15%</td><td class="highlight">85%</td></tr>
+        <tr><td>시설급여 (요양원 등)</td><td class="red">20%</td><td class="highlight">80%</td></tr>
+      </table>
+      <p style="margin-top: 8px; font-size: 12px;">※ 경감대상자(저소득 등)는 본인부담 9%, 6% 등 적용 가능 (보건복지부 고시)</p>
+    </div>
+
+    <div class="section">
+      <h3>3. 이용 절차</h3>
+      <ul>
+        <li><strong>① 인정 신청</strong> — 시·군·구 장기요양전담기관 또는 국민건강보험공단</li>
+        <li><strong>② 등급 판정</strong> — 일상생활 수행 능력 등 평가 후 등급 결정</li>
+        <li><strong>③ 기관 선택</strong> — 방문요양·데이케어·시설 등 원하는 기관과 이용 계획 수립</li>
+        <li><strong>④ 서비스 이용</strong> — 이용한 만큼 <strong>본인부담금(15% 또는 20%)만 납부</strong>, 나머지는 공단이 기관에 지급</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>4. 비급여(전액 본인 부담)</h3>
+      <p>다음 항목은 <span class="red">급여 외로 전액 본인 부담</span>이며, 국가 지원금·실손보험 적용 대상이 아닙니다.</p>
+      <ul>
+        <li>식사재료비(식대), 이·미용비, 간식비</li>
+        <li>상급침실·개인실 이용 추가 비용</li>
+        <li>사적 간병비(돌봄인 고용비)</li>
+      </ul>
+    </div>
+
+    <div class="source-block">
+      <p><strong>출처</strong></p>
+      <p>· 등급별 재가급여 월 한도액: 보건복지부 「장기요양급여 제공기준 및 급여비용 산정방법 등에 관한 고시」 2026년 개정 (2025년 보건복지부 고시 제2025-115호 등 반영)</p>
+      <p>· 본인부담률(재가 15%, 시설 20%): 동 고시 및 국민건강보험공단 장기요양급여 안내</p>
+      <p>· 이용 절차·비급여: 찾기쉬운 생활법령정보, 보건복지부·공단 홈페이지 (확인일 기준)</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+export async function generateGovSupportGuidePng(): Promise<Buffer> {
+  const html = getGovSupportGuideHTML();
+  return htmlToPngContentHeight(html, 560);
 }
 
 /** 부가 설명 콘텐츠 (content/report-content.json 구조) */
@@ -314,8 +515,17 @@ function buildAnalysisResultMain(
 
   const ageMatch = ageBody.match(/상위\s*(\d+)~?(\d+)?\s*%|(\d+)~?(\d+)?\s*%?\s*수준/);
   const agePercent = ageMatch ? parseInt(ageMatch[1] || ageMatch[3] || '25', 10) : 25;
-  // 위험도: '저위험'→저, '고위험'(단 '어렵' 제외)→고, '중위험'→중. '경도인지장애'의 '경도'만으로는 중으로 쓰지 않음.
-  const riskLevel = dementiaBody.includes('저위험') ? '저' : (dementiaBody.includes('고위험') && !dementiaBody.includes('어렵')) ? '고' : dementiaBody.includes('중위험') ? '중' : '저';
+  // 위험도는 총점만 사용 (등급은 검진 추정치일 뿐 공단 판정이 아님).
+  let riskLevel: '저' | '중' | '고' =
+    dementiaBody.includes('고위험') && !dementiaBody.includes('어렵')
+      ? '고'
+      : dementiaBody.includes('중위험') || /\'중\'|중\s*수준|위험.*중/.test(dementiaBody)
+        ? '중'
+        : dementiaBody.includes('저위험')
+          ? '저'
+          : '저';
+  if (total >= 40 && total < 60 && riskLevel === '저') riskLevel = '중';
+  if (total < 40 && riskLevel === '저') riskLevel = '고';
   const riskColor = riskLevel === '고' ? '#ef4444' : riskLevel === '중' ? '#f59e0b' : '#10b981';
   const riskBg = riskLevel === '고' ? '#fee2e2' : riskLevel === '중' ? '#fef3c7' : '#d1fae5';
   const problemLines = problemBody.split('\n').filter(Boolean);
@@ -323,7 +533,7 @@ function buildAnalysisResultMain(
 
   const keyMetrics = `<div class="analysis-key-metrics">
     <div class="analysis-metric"><span class="analysis-metric-label">인지 위치</span><span class="analysis-metric-value">상위 ${agePercent}%</span></div>
-    <div class="analysis-metric analysis-metric-risk"><span class="analysis-metric-label">위험도</span><span class="analysis-metric-value" style="color:${riskColor}">${riskLevel}위험</span></div>
+    <div class="analysis-metric analysis-metric-risk"><span class="analysis-metric-label">위험도</span><span class="analysis-metric-value" style="color:${riskColor}">${riskLevel}위험</span><span class="analysis-metric-hint">(총점 기준)</span></div>
     <div class="analysis-metric"><span class="analysis-metric-label">이번 달</span><span class="analysis-metric-value">할 일 1건</span></div>
     <div class="analysis-metric"><span class="analysis-metric-label">점검</span><span class="analysis-metric-value">${problemCount}개 영역</span></div>
   </div>`;
@@ -640,6 +850,7 @@ function getExplanationHTML(data: Record<string, unknown>, content: ReportConten
     }
     .analysis-metric-label { display: block; font-size: 12px; color: #475569; font-weight: 700; margin-bottom: 2px; }
     .analysis-metric-value { font-size: 14px; font-weight: 800; color: #1e293b; line-height: 1.3; }
+    .analysis-metric-hint { display: block; font-size: 10px; color: #94a3b8; font-weight: 500; margin-top: 1px; }
     .analysis-card {
       background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; margin-bottom: 10px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.04);
@@ -697,15 +908,15 @@ export async function generateExplanationPng(
 ): Promise<Buffer> {
   const defaultContent: ReportContent = {
     stageDescriptions: {
-      good: '좋음(80~100점): 인지 기능이 잘 유지되고 있습니다. 규칙적인 생활과 사회 참여를 이어가 주세요.',
-      normal: '보통(60~80점): 정상 범위에 가깝습니다. 주기적인 검진을 권장합니다.',
-      fair: '양호(40~60점): 특정 영역이 다소 낮을 수 있습니다. 정밀 검사나 전문의 상담을 고려해 보세요.',
-      caution: '주의(20~40점): 주의 관찰이 필요합니다. 정밀 검사 및 상담을 권장합니다.',
-      danger: '위험(0~20점): 고위험군일 수 있습니다. 의료기관 정밀 검사와 상담을 권장합니다.',
+      good: '좋음(80~100점): 인지 기능이 잘 유지되고 있습니다. 1년에 1회 정도 정기 검진으로 변화를 확인하시고, 규칙적인 수면·운동·사회 참여를 이어가 주세요. 실손·간병 보험도 점검해 두시면 좋습니다.',
+      normal: '보통(60~79점): 전반적으로 정상 범위에 가깝습니다. 6개월~1년 주기 검진으로 추이를 살펴보시고, 일부 영역이 낮다면 해당 영역 훈련(메모, 독서, 대화 등)과 간병·장기요양 보험 상담을 권장합니다.',
+      fair: '양호(40~59점): 일부 영역이 다소 낮게 나왔을 수 있습니다. 의료기관 인지 정밀 검사나 전문의 상담으로 원인을 확인하시고, 점검 영역에 맞춘 훈련과 보험·돌봄 계획을 함께 검토해 보세요.',
+      caution: '주의(20~39점): 주의 관찰이 필요한 구간입니다. 가능한 빨리 치매 클리닉 등 정밀 검사를 받으시고, 가족과 함께 돌봄·경제 부담에 대한 준비를 논의하시는 것을 권장합니다.',
+      danger: '위험(0~19점): 고위험군일 수 있어 의료기관 정밀 검사와 상담이 권장됩니다. 보험·지원 제도 상담을 함께 받으시고, 가족과 돌봄 계획을 미리 정리하시기 바랍니다.',
     },
     extraSections: [
-      { title: '이 검사에 대해', body: '본 검사는 선별 목적이며, 확진이 아닙니다. 정밀 검사는 의료기관을 방문하세요.' },
-      { title: '주의사항', body: '결과는 참고용이며, 진단·치료를 대체하지 않습니다.' },
+      { title: '이 검사에 대해', body: '본 검사는 다수의 치매·인지 검사 항목을 기반으로 구성되었습니다. 점수 구간과 해석(예: 정상 범위에 가깝다)은 검사 규준(norm)·매뉴얼 및 의료진 해석에 맞춰 안내합니다. 선별 목적이며 확진이 아닙니다. 정밀 검사는 의료기관을 방문하세요.' },
+      { title: '주의사항', body: '결과는 참고용이며, 진단·치료를 대체하지 않습니다. 최종 판단은 의료기관에서 이루어집니다.' },
     ],
   };
   const c = content ?? defaultContent;

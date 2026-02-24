@@ -14,6 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "치매 검사 | 뇌 건강 검진 | 간병비 계산 - 치매검사.com",
+  icons: { icon: '/favicon.ico' },
   description: "무료 온라인 치매 검사 및 뇌 건강 검진. 15가지 인지 기능 평가로 치매 조기 발견. 10년 후 간병비 예측까지 한 번에 확인하세요. 전문 보험설계사 무료 상담 제공.",
   keywords: ["치매 검사", "뇌 건강 검진", "간병비 계산", "치매 조기 발견", "인지 기능 검사", "간병비 보험", "치매 선별검사", "뇌 건강 평가"],
   openGraph: {

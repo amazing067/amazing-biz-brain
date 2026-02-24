@@ -205,11 +205,7 @@ export async function POST(request: NextRequest) {
               </div>
             </div>
             <div style="background-color: #fef2f2; padding: 15px; border-radius: 8px; border: 2px solid #dc2626;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span style="font-weight: bold; color: #dc2626; font-size: 16px;">실제 본인 부담금 (월)</span>
-                <span style="font-weight: bold; color: #dc2626; font-size: 20px;">${(finalSelfPay || 0).toLocaleString()}원</span>
-              </div>
-              <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dc2626;">
+              <div style="margin-bottom: 12px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px;">
                   <span>① 법정 본인부담금</span>
                   <span>${(coPay || 0).toLocaleString()}원</span>
@@ -218,6 +214,10 @@ export async function POST(request: NextRequest) {
                   <span>② 비급여 (식대/간병비)</span>
                   <span>+${(nonCoveredCost || 0).toLocaleString()}원</span>
                 </div>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid #dc2626;">
+                <span style="font-weight: bold; color: #dc2626; font-size: 16px;">실제 본인 부담금 (월) <span style="font-size: 11px; color: #b91c1c;">※ 위 ①·② 포함</span></span>
+                <span style="font-weight: bold; color: #dc2626; font-size: 20px;">${(finalSelfPay || 0).toLocaleString()}원</span>
               </div>
             </div>
             <p style="margin-top: 15px; font-size: 12px; color: #64748b; text-align: center;">

@@ -216,6 +216,27 @@ export default function AdminReportPage() {
       (d) => `${name(d)}_부가설명_2.png`
     );
 
+  const handleGovSupportGuidePng = async () => {
+    setStatus('loading');
+    setMessage('');
+    try {
+      const res = await fetch('/api/generate-report-gov-support-guide-image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.details || err.error || `서버 오류 ${res.status}`);
+      }
+      const blob = await res.blob();
+      const fromHeader = res.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] || '';
+      const suggestedName = fromHeader || `국가지원금_이용안내_${new Date().toISOString().split('T')[0]}.png`;
+      triggerDownload(blob, suggestedName);
+      setStatus('done');
+      setMessage('국가 지원금 안내 이미지 다운로드가 시작되었습니다.');
+    } catch (e: unknown) {
+      setStatus('error');
+      setMessage((e as Error)?.message || '이미지 생성에 실패했습니다.');
+    }
+  };
+
   const triggerDownload = (blob: Blob, fileName: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -366,44 +387,69 @@ export default function AdminReportPage() {
             </button>
           </div>
           <div className="overflow-x-auto border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
-                  <th className="text-left py-2 px-3 font-semibold text-gray-700">신청 일시</th>
+                  <th className="text-left py-2 px-3 font-semibold text-gray-700 w-36">신청 일시</th>
                   <th className="text-left py-2 px-3 font-semibold text-gray-700">이름</th>
                   <th className="text-left py-2 px-3 font-semibold text-gray-700">연락처</th>
-                  <th className="text-right py-2 px-3 font-semibold text-gray-700">점수</th>
-                  <th className="py-2 px-3 font-semibold text-gray-700 w-20"></th>
+                  <th className="text-right py-2 px-3 font-semibold text-gray-700 w-14">점수</th>
+                  <th className="py-2 px-2 font-semibold text-gray-700 w-28 text-center">작업</th>
                 </tr>
               </thead>
               <tbody>
                 {applicantsList.length === 0 && !listLoading && (
                   <tr><td colSpan={5} className="py-6 text-center text-gray-400">저장된 신청이 없습니다.</td></tr>
                 )}
-                {[...applicantsList].reverse().map((row, i) => (
-                  <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="py-2 px-3 text-gray-600">{(row.appliedAt as string)?.replace('T', ' ').slice(0, 19) ?? '-'}</td>
-                    <td className="py-2 px-3 font-medium">{(row.userName as string) ?? '-'}</td>
-                    <td className="py-2 px-3">{(row.phoneNumber as string) ?? '-'}</td>
-                    <td className="py-2 px-3 text-right">{(row.total as number) ?? '-'}점</td>
-                    <td className="py-2 px-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setInputMode('paste');
-                          const obj = { ...row } as Record<string, unknown>;
-                          if (obj.costBreakdown == null) obj.costBreakdown = getCostBreakdownText(obj);
-                          setPastedJson(JSON.stringify(obj, null, 2));
-                          setMessage('');
-                          document.querySelector('[data-section="report"]')?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className="text-xs py-1 px-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                      >
-                        바로 넣기
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {[...applicantsList].reverse().map((row, i) => {
+                  const originalIndex = applicantsList.length - 1 - i;
+                  return (
+                    <tr key={originalIndex} className="border-t border-gray-100 hover:bg-gray-50">
+                      <td className="py-2 px-3 text-gray-600 truncate">{(row.appliedAt as string)?.replace('T', ' ').slice(0, 19) ?? '-'}</td>
+                      <td className="py-2 px-3 font-medium truncate">{(row.userName as string) ?? '-'}</td>
+                      <td className="py-2 px-3 truncate">{(row.phoneNumber as string) ?? '-'}</td>
+                      <td className="py-2 px-3 text-right">{(row.total as number) ?? '-'}점</td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center justify-center gap-1 flex-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInputMode('paste');
+                              const obj = { ...row } as Record<string, unknown>;
+                              if (obj.costBreakdown == null) obj.costBreakdown = getCostBreakdownText(obj);
+                              setPastedJson(JSON.stringify(obj, null, 2));
+                              setMessage('');
+                              document.querySelector('[data-section="report"]')?.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="text-xs py-1 px-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 whitespace-nowrap shrink-0"
+                          >
+                            바로 넣기
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!confirm('이 신청을 목록에서 삭제할까요?')) return;
+                              setListLoading(true);
+                              try {
+                                const res = await fetch('/api/applicants-list', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ index: originalIndex }) });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.error || '삭제 실패');
+                                setApplicantsList(Array.isArray(data.list) ? data.list : []);
+                              } catch (e: unknown) {
+                                setMessage((e as Error)?.message || '삭제에 실패했습니다.');
+                              } finally {
+                                setListLoading(false);
+                              }
+                            }}
+                            className="text-xs py-1 px-2 bg-red-100 text-red-700 rounded hover:bg-red-200 whitespace-nowrap shrink-0"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -600,8 +646,16 @@ export default function AdminReportPage() {
             >
               부가설명 PNG (2) 분석·다음단계
             </button>
+            <button
+              type="button"
+              onClick={handleGovSupportGuidePng}
+              disabled={status === 'loading'}
+              className="py-2.5 px-4 bg-sky-100 text-sky-800 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              국가 지원금 안내 PNG
+            </button>
           </div>
-          <p className="text-xs text-gray-500 mt-1">부가설명 1장=비용·보험료, 2장=다음 단계·주의사항. <strong>분석 보기</strong>를 먼저 실행하면 화면에 나온 AI 분석 결과가 그대로 부가설명 PNG(1·2)에 반영됩니다. <strong>전체 다운로드</strong>는 자동으로 AI 분석을 호출한 뒤 같은 내용으로 PNG를 뽑습니다.</p>
+          <p className="text-xs text-gray-500 mt-1">부가설명 1장=비용·보험료, 2장=다음 단계·주의사항. <strong>국가 지원금 안내 PNG</strong>는 공식 자료 기준 이용·지급 안내(데이터 불필요). <strong>분석 보기</strong>를 먼저 실행하면 화면에 나온 AI 분석 결과가 그대로 부가설명 PNG(1·2)에 반영됩니다. <strong>전체 다운로드</strong>는 자동으로 AI 분석을 호출한 뒤 같은 내용으로 PNG를 뽑습니다.</p>
 
           {message && (
             <p className={`text-sm ${status === 'error' ? 'text-red-600' : 'text-gray-600'}`}>
@@ -614,7 +668,7 @@ export default function AdminReportPage() {
           <p className="font-medium text-gray-700 mb-2">리포터 만드는 흐름</p>
           <ol className="list-decimal list-inside space-y-1">
             <li>이메일로 받은 <strong>치매검사보고서_이름_날짜_데이터.json</strong> 을 여기서 선택 (드래그 앤 드롭 가능)</li>
-            <li><strong>다이어그램 PNG</strong> · <strong>월 예상 금액 PNG</strong> · <strong>부가설명 PNG (1) 비용·보험료</strong> · <strong>부가설명 PNG (2) 분석·다음단계</strong> 를 각각 뽑아 다운로드</li>
+            <li><strong>다이어그램 PNG</strong> · <strong>월 예상 금액 PNG</strong> · <strong>부가설명 PNG (1) 비용·보험료</strong> · <strong>부가설명 PNG (2) 분석·다음단계</strong> · <strong>국가 지원금 안내 PNG</strong> 를 각각 뽑아 다운로드</li>
             <li>워드/한글/디자인 툴에서 위 이미지 + 필요한 텍스트를 붙여 고객 전달용 리포터 제작</li>
           </ol>
           <p className="font-medium text-gray-700 mt-3 mb-1">부가 설명 문구 수정</p>
