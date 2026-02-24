@@ -13,6 +13,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@sparticuz/chromium": "^143.0.4",
+    "@sparticuz/chromium-min": "^143.0.4",
     "@types/nodemailer": "^7.0.5",
     "@types/puppeteer": "^5.4.7",
     "lucide-react": "^0.562.0",

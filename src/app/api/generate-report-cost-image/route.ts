@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCostAnalysisPng } from '../../../lib/report-images';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();

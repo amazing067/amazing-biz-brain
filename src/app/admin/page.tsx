@@ -199,6 +199,22 @@ export default function AdminReportPage() {
     runGenerate('/api/generate-report-diagram-image', 'diagram.png', 'png', undefined, (d) => `${name(d)}_다이어그램.png`);
   const handleCostPng = () =>
     runGenerate('/api/generate-report-cost-image', 'cost_analysis.png', 'png', undefined, (d) => `${name(d)}_월예상금액.png`);
+  const handleExplanationPng1 = () =>
+    runGenerate(
+      '/api/generate-report-explanation-image',
+      'explanation_1.png',
+      'png',
+      { part: 1, ...(analysisResult ? { analysisResult } : {}) },
+      (d) => `${name(d)}_부가설명_1.png`
+    );
+  const handleExplanationPng2 = () =>
+    runGenerate(
+      '/api/generate-report-explanation-image',
+      'explanation_2.png',
+      'png',
+      { part: 2, ...(analysisResult ? { analysisResult } : {}) },
+      (d) => `${name(d)}_부가설명_2.png`
+    );
 
   const triggerDownload = (blob: Blob, fileName: string) => {
     const url = URL.createObjectURL(blob);
@@ -214,9 +230,25 @@ export default function AdminReportPage() {
     if (!data) return;
     const userName = name(data);
     setStatus('loading');
-    setMessage('다이어그램 생성 중…');
+    setMessage('AI 분석 중…');
     try {
       const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      let analysisResultForDownload: Record<string, unknown> | null = null;
+      try {
+        const resAnalyze = await fetch('/api/analyze-report-ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        if (resAnalyze.ok) {
+          const json = await resAnalyze.json();
+          if (json.monthlyPremiumRecommend != null || json.nextSteps != null) analysisResultForDownload = json;
+        }
+      } catch {
+        // 분석 실패 시 로컬 분석으로 PNG 생성
+      }
+
+      setMessage('다이어그램 생성 중…');
       let res = await fetch('/api/generate-report-diagram-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -240,9 +272,35 @@ export default function AdminReportPage() {
         throw new Error((err as { error?: string }).error || '월 예상 금액 생성 실패');
       }
       triggerDownload(await res.blob(), `${userName}_월예상금액.png`);
+      await delay(400);
+
+      setMessage('부가설명 1 생성 중…');
+      res = await fetch('/api/generate-report-explanation-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, part: 1, ...(analysisResultForDownload ? { analysisResult: analysisResultForDownload } : {}) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || '부가설명 1 생성 실패');
+      }
+      triggerDownload(await res.blob(), `${userName}_부가설명_1.png`);
+      await delay(400);
+
+      setMessage('부가설명 2 생성 중…');
+      res = await fetch('/api/generate-report-explanation-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, part: 2, ...(analysisResultForDownload ? { analysisResult: analysisResultForDownload } : {}) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || '부가설명 2 생성 실패');
+      }
+      triggerDownload(await res.blob(), `${userName}_부가설명_2.png`);
 
       setStatus('done');
-      setMessage('2개 이미지 다운로드 완료.');
+      setMessage(analysisResultForDownload ? '4개 이미지 다운로드 완료 (AI 분석 반영).' : '4개 이미지 다운로드 완료.');
     } catch (e: unknown) {
       setStatus('error');
       setMessage((e as Error)?.message || '전체 다운로드 중 오류가 발생했습니다.');
@@ -500,14 +558,14 @@ export default function AdminReportPage() {
 
         <div className="space-y-4">
           <p className="text-sm font-medium text-gray-700 mb-2">이미지 (PNG) — 리포터용</p>
-          <p className="text-xs text-gray-500 mb-2">데이터 JSON 선택 후 필요한 이미지를 뽑아, 워드/한글 등에서 리포터를 따로 만드세요. 다운로드 시 파일명은 「이름_다이어그램」「이름_월예상금액」으로 저장됩니다.</p>
+          <p className="text-xs text-gray-500 mb-2">데이터 JSON 선택 후 필요한 이미지를 뽑아, 워드/한글 등에서 리포터를 따로 만드세요. 다운로드 시 파일명은 「이름_다이어그램」「이름_월예상금액」「이름_부가설명_1」「이름_부가설명_2」로 저장됩니다.</p>
           <button
             type="button"
             onClick={handleDownloadAll}
             disabled={!hasReportData() || status === 'loading'}
             className="w-full py-3 px-4 bg-blue-600 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm mb-3 hover:bg-blue-700"
           >
-            전체 다운로드 (다이어그램 + 월 예상 금액)
+            전체 다운로드 (다이어그램 + 월예상금액 + 부가설명 1·2)
           </button>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -526,7 +584,24 @@ export default function AdminReportPage() {
             >
               월 예상 금액 PNG
             </button>
+            <button
+              type="button"
+              onClick={handleExplanationPng1}
+              disabled={!hasReportData() || status === 'loading'}
+              className="py-2.5 px-4 bg-violet-100 text-violet-800 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              부가설명 PNG (1) 비용·보험료
+            </button>
+            <button
+              type="button"
+              onClick={handleExplanationPng2}
+              disabled={!hasReportData() || status === 'loading'}
+              className="py-2.5 px-4 bg-violet-100 text-violet-800 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              부가설명 PNG (2) 분석·다음단계
+            </button>
           </div>
+          <p className="text-xs text-gray-500 mt-1">부가설명 1장=비용·보험료, 2장=다음 단계·주의사항. <strong>분석 보기</strong>를 먼저 실행하면 화면에 나온 AI 분석 결과가 그대로 부가설명 PNG(1·2)에 반영됩니다. <strong>전체 다운로드</strong>는 자동으로 AI 분석을 호출한 뒤 같은 내용으로 PNG를 뽑습니다.</p>
 
           {message && (
             <p className={`text-sm ${status === 'error' ? 'text-red-600' : 'text-gray-600'}`}>
@@ -539,9 +614,13 @@ export default function AdminReportPage() {
           <p className="font-medium text-gray-700 mb-2">리포터 만드는 흐름</p>
           <ol className="list-decimal list-inside space-y-1">
             <li>이메일로 받은 <strong>치매검사보고서_이름_날짜_데이터.json</strong> 을 여기서 선택 (드래그 앤 드롭 가능)</li>
-            <li><strong>다이어그램 PNG</strong> · <strong>월 예상 금액 PNG</strong> 를 각각 뽑아 다운로드</li>
+            <li><strong>다이어그램 PNG</strong> · <strong>월 예상 금액 PNG</strong> · <strong>부가설명 PNG (1) 비용·보험료</strong> · <strong>부가설명 PNG (2) 분석·다음단계</strong> 를 각각 뽑아 다운로드</li>
             <li>워드/한글/디자인 툴에서 위 이미지 + 필요한 텍스트를 붙여 고객 전달용 리포터 제작</li>
           </ol>
+          <p className="font-medium text-gray-700 mt-3 mb-1">부가 설명 문구 수정</p>
+          <p><code className="bg-gray-100 px-1">content/report-content.json</code> 에서 단계별 해석·추가 섹션을 수정하면, 다음에 부가 설명 PNG 뽑을 때 반영됩니다.</p>
+          <p className="font-medium text-gray-700 mt-3 mb-1">이미지</p>
+          <p>다이어그램·월 예상 금액·부가 설명 PNG만 생성합니다.</p>
         </div>
         </div>
       </div>

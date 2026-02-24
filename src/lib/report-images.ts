@@ -21,6 +21,10 @@ function isServerless(): boolean {
   return process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME != null || process.cwd().startsWith('/var/task');
 }
 
+/** Vercel 등 서버리스에서 Chromium pack 다운로드 URL (런타임에 /tmp에 다운로드 후 사용) */
+const CHROMIUM_PACK_URL =
+  'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar';
+
 /** 서버/서버리스에 맞는 브라우저 실행 옵션 반환 */
 async function getLaunchOptions(): Promise<{ executablePath: string; args: string[] } | null> {
   const envPath = process.env.PUPPETEER_EXECUTABLE_PATH;
@@ -28,8 +32,9 @@ async function getLaunchOptions(): Promise<{ executablePath: string; args: strin
     return { executablePath: envPath, args: DEFAULT_ARGS };
   }
   if (isServerless()) {
-    const chromium = await import('@sparticuz/chromium');
-    const executablePath = await chromium.default.executablePath();
+    // Vercel 등: chromium-min + pack URL로 런타임 다운로드 (번들에 bin 미포함 문제 회피)
+    const chromium = await import('@sparticuz/chromium-min');
+    const executablePath = await chromium.default.executablePath(CHROMIUM_PACK_URL);
     const args = chromium.default.args ?? DEFAULT_ARGS;
     return { executablePath, args };
   }

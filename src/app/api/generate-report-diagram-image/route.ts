@@ -1,8 +1,11 @@
 /**
  * JSON → 인지 기능 다이어그램 PNG (신청 버튼과 무관, 관리자용)
+ * Vercel: chromium-min이 첫 요청 시 pack 다운로드할 수 있도록 시간 여유
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { generateDiagramPng } from '../../../lib/report-images';
+
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {

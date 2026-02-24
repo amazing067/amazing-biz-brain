@@ -8,6 +8,8 @@ import { join } from 'path';
 import { generateExplanationPng, type ReportContent } from '../../../lib/report-images';
 import { analyzeReport, getCostBreakdownExplanationOnly, getCostBreakdownExplanationShort, enrichProblemAreasWithConcreteTips } from '../../../lib/report-analysis';
 
+export const maxDuration = 60;
+
 function loadReportContent(): ReportContent | null {
   try {
     const path = join(process.cwd(), 'content', 'report-content.json');
