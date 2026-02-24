@@ -497,8 +497,15 @@ function buildAnalysisResultMain(
   const stageBg: Record<string, string> = { good: '#d1fae5', normal: '#dbeafe', fair: '#fef3c7', caution: '#ffedd5', danger: '#fee2e2' };
   const sc = stageColors[stageKey] ?? '#64748b';
   const sbg = stageBg[stageKey] ?? '#f1f5f9';
-  const descOnly = stageDesc.replace(/^[^:]+:\s*/, '').trim();
-  const firstSentence = (descOnly.match(/^[^.]*[.。]/) || [descOnly])[0].trim() || descOnly.slice(0, 60);
+
+  const getSection = (t: string) => sections.find((s) => String(s?.title ?? '').includes(t));
+  const ageBody = getSection('동일 나이대')?.body ?? '';
+  const dementiaBody = getSection('치매')?.body ?? '';
+
+  // 상단 70점 옆 한 줄 문구 = 하단 '동일 나이대 인지 위치'와 동일 로직(같은 본문 첫 문장 사용)
+  const firstSentenceFromAge = ageBody.trim() ? (ageBody.match(/^[^.]*[.。]/) || [ageBody])[0].trim() || ageBody.slice(0, 80) : '';
+  const fallbackDesc = stageDesc.replace(/^[^:]+:\s*/, '').trim();
+  const firstSentence = firstSentenceFromAge || (fallbackDesc.match(/^[^.]*[.。]/) || [fallbackDesc])[0].trim() || fallbackDesc.slice(0, 60);
 
   const summaryStrip = `<div class="analysis-summary-strip">
     <span class="analysis-stage-badge" style="background:${sbg};color:${sc};border-color:${sc}">${escapeHtml(stageLabel)}</span>
@@ -506,9 +513,6 @@ function buildAnalysisResultMain(
     <p class="analysis-summary-line">${escapeHtml(firstSentence)}</p>
   </div>`;
 
-  const getSection = (t: string) => sections.find((s) => String(s?.title ?? '').includes(t));
-  const ageBody = getSection('동일 나이대')?.body ?? '';
-  const dementiaBody = getSection('치매')?.body ?? '';
   const actionBody = getSection('이번 달')?.body ?? '';
   const nextBody = getSection('다음에 할 일')?.body ?? '';
   const problemBody = getSection('점검해볼')?.body ?? '';
@@ -909,7 +913,7 @@ export async function generateExplanationPng(
   const defaultContent: ReportContent = {
     stageDescriptions: {
       good: '좋음(80~100점): 인지 기능이 잘 유지되고 있습니다. 1년에 1회 정도 정기 검진으로 변화를 확인하시고, 규칙적인 수면·운동·사회 참여를 이어가 주세요. 실손·간병 보험도 점검해 두시면 좋습니다.',
-      normal: '보통(60~79점): 전반적으로 정상 범위에 가깝습니다. 6개월~1년 주기 검진으로 추이를 살펴보시고, 일부 영역이 낮다면 해당 영역 훈련(메모, 독서, 대화 등)과 간병·장기요양 보험 상담을 권장합니다.',
+      normal: '보통(60~79점): 60점대는 정상 범위에 가깝고, 70점대는 인지지원등급 구간으로 경미한 인지 저하가 있을 수 있습니다. 주기 검진과 일부 영역 훈련·간병·장기요양 보험 상담을 권장합니다.',
       fair: '양호(40~59점): 일부 영역이 다소 낮게 나왔을 수 있습니다. 의료기관 인지 정밀 검사나 전문의 상담으로 원인을 확인하시고, 점검 영역에 맞춘 훈련과 보험·돌봄 계획을 함께 검토해 보세요.',
       caution: '주의(20~39점): 주의 관찰이 필요한 구간입니다. 가능한 빨리 치매 클리닉 등 정밀 검사를 받으시고, 가족과 함께 돌봄·경제 부담에 대한 준비를 논의하시는 것을 권장합니다.',
       danger: '위험(0~19점): 고위험군일 수 있어 의료기관 정밀 검사와 상담이 권장됩니다. 보험·지원 제도 상담을 함께 받으시고, 가족과 돌봄 계획을 미리 정리하시기 바랍니다.',
