@@ -65,9 +65,10 @@ function getDiagramHTML(data: Record<string, unknown>): string {
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Malgun Gothic', sans-serif; background: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
     .wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     h2 { font-size: 16px; color: #374151; margin-bottom: 16px; text-align: center; }
   </style>
@@ -84,7 +85,7 @@ function getDiagramHTML(data: Record<string, unknown>): string {
         const tx = cx + (maxR + 24) * Math.cos(angle);
         const ty = cy + (maxR + 24) * Math.sin(angle);
         const pct = categoryScores[ap.label]?.percent ?? 0;
-        return `<text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="middle" fill="#1e293b" style="font-size:10px;font-weight:700">${ap.label}</text><text x="${tx}" y="${ty + 14}" text-anchor="middle" dominant-baseline="middle" fill="#2563eb" style="font-size:9px;font-weight:700">${pct}%</text>`;
+        return `<text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="middle" fill="#1e293b" style="font-family:'Noto Sans KR',sans-serif;font-size:10px;font-weight:700">${ap.label}</text><text x="${tx}" y="${ty + 14}" text-anchor="middle" dominant-baseline="middle" fill="#2563eb" style="font-family:'Noto Sans KR',sans-serif;font-size:9px;font-weight:700">${pct}%</text>`;
       }).join('')}
     </svg>
     <p style="font-size: 11px; color: #64748b; text-align: center; margin-top: 12px;">각 영역별 달성률(%) · 꼭지점이 바깥으로 갈수록 양호</p>
@@ -112,9 +113,10 @@ function getCostAnalysisHTML(data: Record<string, unknown>): string {
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Malgun Gothic', sans-serif; background: #f8fafc; padding: 20px; }
+    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: #f8fafc; padding: 20px; }
     .wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; max-width: 520px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     h2 { font-size: 18px; color: #111; margin-bottom: 16px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -178,7 +180,8 @@ async function htmlToPng(html: string, viewport = { width: 400, height: 420 }): 
     const page = await browser.newPage();
     page.setDefaultTimeout(60000);
     await page.setViewport({ ...viewport, deviceScaleFactor: 1 });
-    await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+    await new Promise((r) => setTimeout(r, 600));
     const buf = await page.screenshot({ type: 'png' });
     const buffer = Buffer.from(buf);
     if (!buffer || buffer.length === 0) throw new Error('스크린샷이 비어 있습니다.');
@@ -497,10 +500,11 @@ function getExplanationHTML(data: Record<string, unknown>, content: ReportConten
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', '맑은 고딕', sans-serif;
+      font-family: 'Noto Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
       background: #fff;
       color: #1e293b;
       line-height: 1.55;
