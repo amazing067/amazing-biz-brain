@@ -1,0 +1,40 @@
+{
+  "userName": "테스트",
+  "phoneNumber": "01012345678",
+  "birthYear": "1959",
+  "birthMonth": "05",
+  "birthDay": "29",
+  "gender": "남성",
+  "region": "서울",
+  "age": 65,
+  "total": 98,
+  "grade": "정상 (등급 외)",
+  "limitAmount": 0,
+  "status": "양호",
+  "careType": "일상 생활 유지",
+  "realGovSupport": 0,
+  "coPay": 0,
+  "nonCoveredCost": 200000,
+  "finalSelfPay": 200000,
+  "futureTotalCost": 296000,
+  "futureGovSupport": 0,
+  "futureSelfPay": 296000,
+  "futureDetails": {
+    "caregiver": 0,
+    "medical": 148000,
+    "living": 148000
+  },
+  "categoryScores": {
+    "기억력": { "score": 25, "max": 25, "percent": 100 },
+    "지남력": { "score": 15, "max": 15, "percent": 100 },
+    "주의력": { "score": 8, "max": 10, "percent": 80 },
+    "계산력": { "score": 10, "max": 10, "percent": 100 },
+    "시공간": { "score": 5, "max": 5, "percent": 100 },
+    "언어유창성": { "score": 10, "max": 10, "percent": 100 },
+    "집행기능": { "score": 10, "max": 10, "percent": 100 },
+    "판단력": { "score": 5, "max": 5, "percent": 100 },
+    "작업기억": { "score": 5, "max": 5, "percent": 100 },
+    "억제능력": { "score": 5, "max": 5, "percent": 100 }
+  },
+  "familyWarning": "⚠️ 가족(자녀)에게 월 30만원의\n경제적 부담을 지우게 됩니다."
+}

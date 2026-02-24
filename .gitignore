@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 신청 목록 (개인정보 포함 - 로컬/서버에만 유지, 저장소에는 올리지 않음)
+/data/applicants.json

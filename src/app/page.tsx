@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { getDistrictsByRegion, getDongsByDistrict } from '../lib/region-data';
 
 // ============================================================================
 // 1. 데이터 정의 (모바일 최적화 텍스트)
@@ -444,7 +445,7 @@ function MultiChoiceGame({ options, onComplete }: { options: string[]; onComplet
 
 // [9] 풍선 게임 (업그레이드: 지속적으로 풍선 생성)
 // [9] 언어유창성 게임: 카테고리 단어 생성 게임 (Verbal Fluency Test 기반)
-function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
+function WordFluencyGame({ onComplete }: { onComplete: (result: { correct: number; wrong: number }) => void }) {
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set());
   const [score, setScore] = useState(0);
@@ -456,6 +457,7 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const totalScoreRef = useRef(0);
+  const wrongCountRef = useRef(0);
 
   // 카테고리 데이터: [카테고리명, 정답 단어들, 오답 단어들]
   const categories = [
@@ -559,13 +561,13 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
         selectedWordsRef.current = new Set(); // ref도 초기화
       }, 4000); // 완료 메시지 4초 표시 (다음 챕터로 넘어갈 때까지 충분한 시간)
     } else {
-      // 모든 카테고리 완료
+      // 모든 카테고리 완료 — 정답/오답 개수 전달 (오답당 -2점 적용용)
       setShowComplete(true);
       setIsDone(true);
       setScore(totalScoreRef.current);
       setTimeout(() => {
         setShowComplete(false);
-        onComplete();
+        onComplete({ correct: totalScoreRef.current, wrong: wrongCountRef.current });
       }, 4000); // 완료 메시지 4초 표시 (게임 완료까지 충분한 시간)
     }
   }, [onComplete]);
@@ -639,12 +641,12 @@ function WordFluencyGame({ onComplete }: { onComplete: () => void }) {
       navigator.vibrate(isCorrect ? 50 : 100);
     }
 
-    // 정답이면 점수 증가, 오답이면 감점
+    // 정답이면 점수 증가, 오답이면 감점 및 오답 횟수 누적 (총점 계산 시 오답당 -2점)
     if (isCorrect) {
       setScore(prev => prev + 1);
       totalScoreRef.current += 1;
     } else {
-      // 오답 선택 시 -1점 감점
+      wrongCountRef.current += 1;
       setScore(prev => Math.max(0, prev - 1));
       totalScoreRef.current = Math.max(0, totalScoreRef.current - 1);
     }
@@ -1031,10 +1033,11 @@ function SchulteTableGame({ timeLimit, onComplete }: { timeLimit?: number; onCom
   );
 }
 
-function PatternLogicGame({ onComplete }: { onComplete: () => void }) {
+function PatternLogicGame({ onComplete }: { onComplete: (result: { done: true; wrongAttempts: number }) => void }) {
   const [timeLeft, setTimeLeft] = useState(20);
   const [isDone, setIsDone] = useState(false);
   const onCompleteRef = useRef(onComplete);
+  const wrongAttemptsRef = useRef(0);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -1047,7 +1050,7 @@ function PatternLogicGame({ onComplete }: { onComplete: () => void }) {
         if (p <= 1) { 
           clearInterval(t); 
           setIsDone(true); 
-          setTimeout(() => onCompleteRef.current(), 0); 
+          setTimeout(() => onCompleteRef.current({ done: true, wrongAttempts: wrongAttemptsRef.current }), 0); 
           return 0; 
         } 
         return p - 1; 
@@ -1060,7 +1063,9 @@ function PatternLogicGame({ onComplete }: { onComplete: () => void }) {
     if (isDone) return;
     if (s === '▲') { 
       setIsDone(true); 
-      setTimeout(() => onCompleteRef.current(), 500); 
+      setTimeout(() => onCompleteRef.current({ done: true, wrongAttempts: wrongAttemptsRef.current }), 500); 
+    } else {
+      wrongAttemptsRef.current += 1;
     }
   };
 
@@ -1105,7 +1110,7 @@ function PatternLogicGame({ onComplete }: { onComplete: () => void }) {
   );
 }
 
-function CardGame({ onComplete }: { onComplete: () => void }) {
+function CardGame({ onComplete }: { onComplete: (attempts: number) => void }) {
     const [phase, setPhase] = useState<'memorize' | 'play'>('memorize');
     const [flipped, setFlipped] = useState<number[]>([]);
     const [solved, setSolved] = useState<number[]>([]);
@@ -1113,6 +1118,7 @@ function CardGame({ onComplete }: { onComplete: () => void }) {
     const [timeLeft, setTimeLeft] = useState(40);
     const [isDone, setIsDone] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const attemptsRef = useRef(0);
     
     // 카드는 컴포넌트 마운트 시 한 번만 생성하고 고정
     const cards = useRef<string[]>(
@@ -1139,7 +1145,7 @@ function CardGame({ onComplete }: { onComplete: () => void }) {
                     if (prev <= 1) {
                         if (timerRef.current) clearInterval(timerRef.current);
                         setIsDone(true);
-                        setTimeout(() => onComplete(), 0);
+                        setTimeout(() => onComplete(attemptsRef.current), 0);
                         return 0;
                     }
                     return prev - 1;
@@ -1155,7 +1161,7 @@ function CardGame({ onComplete }: { onComplete: () => void }) {
         if (solved.length === 12 && !isDone) {
             setIsDone(true);
             if (timerRef.current) clearInterval(timerRef.current);
-            setTimeout(() => onComplete(), 0);
+            setTimeout(() => onComplete(attemptsRef.current), 0);
         }
     }, [solved, isDone, onComplete]);
 
@@ -1164,7 +1170,11 @@ function CardGame({ onComplete }: { onComplete: () => void }) {
         const next = [...flipped, i];
         setFlipped(next);
         if (next.length === 2) {
-            setAttempts(a => a + 1);
+            setAttempts(a => {
+                const n = a + 1;
+                attemptsRef.current = n;
+                return n;
+            });
             if (cards.current[next[0]] === cards.current[next[1]]) {
                 setTimeout(() => {
                     setSolved([...solved, ...next]);
@@ -1266,7 +1276,7 @@ const calculateFinancials = (score: number) => {
     careCostDesc = '인지자극 프로그램 + 방문요양';
   } else if (score <= 92) {
     grade = '인지지원등급';
-    limitAmount = 676320; // 2026년 인상분 반영
+    limitAmount = 657400; // 2025년 인지지원등급 재가급여 월 한도 (보건복지부 고시)
     status = '경미한 인지 저하';
     careType = '주야간보호(치매전담) 이용';
     careCostDesc = '예방 프로그램 + 복지용구';
@@ -1286,10 +1296,10 @@ const calculateFinancials = (score: number) => {
   let nonCoveredCost = 0; // 비급여 (식대 + **사적 간병비**)
 
   if (score <= 35) { 
-    // [1등급] 요양병원 입소 시나리오 (가장 강력한 세일즈 포인트)
-    // 2026년 기준 간병비 시세: 하루 15~16만원 예상 -> 월 450~480만원
-    // 병원비(진료비+식대): 월 150~200만원
-    totalCost = 6500000; // 총 650만원 소요
+    // [1등급] 요양병원 입소 시나리오
+    // 통계: 24시간 사적 간병 월 평균 약 400만원, 요양병원 간병비 월 250만원 이상 (비급여·실손 미적용)
+    // 하루 15만원×30일=450만원 구간 적용. 병원비(진료·식대) 별도
+    totalCost = 6500000; // 총 650만원 소요 (간병+병원비)
     
     // 지원금: 요양병원은 건강보험 적용 (장기요양 아님). 
     // 하지만 고객 이해를 위해 '한도액만큼 지원받는다 쳐도 부족하다'는 논리로 비교
@@ -1298,7 +1308,7 @@ const calculateFinancials = (score: number) => {
     nonCoveredCost = 4000000; // 사적 간병비 + 비급여 치료비/소모품
   } else if (score <= 50) {
     // [2등급] 요양원(시설) 입소
-    // 시설 수가 인상으로 총 비용 약 300~350만원 예상
+    // 통계: 2025년 2등급 재가급여 월 한도 2,083,400원급, 시설 본인부담 약 20%, 비급여 포함 시 80~100만원 이상
     totalCost = 3500000;
     // 시설급여 한도는 등급별 월 한도액과 다르게 '1일 수가'로 계산되나, 
     // 시뮬레이션상 재가 한도액의 약 1.1~1.2배 수준으로 가정
@@ -1340,29 +1350,33 @@ const calculateFinancials = (score: number) => {
   let futureGovSupportRate = 0; // 정부 지원 비율 (예상)
 
   if (score <= 35) { // 1등급 (요양병원)
-    baseCaregiver = 4500000; // 월 15만원 x 30일
+    // 통계: 사적 간병 24시간 기준 월 약 400만~450만원 (시장 조사), 실손·장기요양 미적용
+    baseCaregiver = 4500000; // 월 15만원×30일 (상한 근거)
     baseMedical = 1000000;   // 진료비/약제비
-    baseLiving = 500000;     // 식대/소모품
-    futureGovSupportRate = 0.2;    // 병원비 일부만 지원 (간병비 0원 지원)
+    baseLiving = 500000;     // 식대/소모품 (비급여)
+    futureGovSupportRate = 0.2;    // 병원비 일부만 지원 (간병비 0원)
   } else if (score <= 50) { // 2등급 (요양원)
-    baseCaregiver = 500000;  // 시설 내 공동 간병비 (본인부담금 포함)
-    baseMedical = 2000000;   // 시설 급여 수가
-    baseLiving = 500000;     // 식대/상급침실료
+    // 통계: 2025년 2등급 재가급여 한도 2,083,400원, 시설급여 80% 지원·본인 20%
+    baseCaregiver = 500000;  // 시설 내 공동 간병 (본인부담 포함)
+    baseMedical = 2080000;   // 2025년 2등급 월 한도액 반영
+    baseLiving = 500000;     // 식대/상급침실료 (비급여)
     futureGovSupportRate = 0.8;    // 시설급여 80% 지원
-  } else if (score <= 85) { // 재가 (센터)
+  } else if (score <= 85) { // 재가 (3~5등급, 센터)
+    // 통계: 2025년 재가 3~5등급 월 한도 117만~148만원, 본인부담 15%
     baseCaregiver = 0;       // 가족 돌봄 가정
-    baseMedical = 1500000;   // 재가 급여 한도
-    baseLiving = 300000;     // 식비 등
+    baseMedical = 1500000;   // 재가 급여 한도 (중간 등급 기준)
+    baseLiving = 300000;     // 식비 등 (비급여)
     futureGovSupportRate = 0.85;   // 재가급여 85% 지원
   } else if (score <= 92) { // 인지지원등급
+    // 통계: 2025년 인지지원등급 재가급여 월 한도 657,400원 (보건복지부 고시)
     baseCaregiver = 0;       // 가족 돌봄 가정
-    baseMedical = 676320;    // 인지지원등급 한도액
-    baseLiving = 300000;     // 식비 등
+    baseMedical = 657400;    // 2025년 인지지원등급 월 한도액
+    baseLiving = 300000;     // 식비 등 (비급여)
     futureGovSupportRate = 0.85;   // 재가급여 85% 지원
   } else {
     baseCaregiver = 0;
-    baseMedical = 100000;
-    baseLiving = 100000;
+    baseMedical = 100000;   // 병원비/시설비 (등급 외 시 소액 가정)
+    baseLiving = 60000;    // 식대/소모품은 병원비와 구분
     futureGovSupportRate = 0;
   }
 
@@ -1420,7 +1434,9 @@ export default function Home() {
     birthMonth: '', 
     birthDay: '', 
     gender: '', 
-    region: '' 
+    region: '', 
+    district: '', 
+    dong: '' 
   });
   const [userName, setUserName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -1453,7 +1469,7 @@ export default function Home() {
           else testAnswers[q.id] = q.correctAnswer;
         });
         setAnswers(testAnswers);
-        setUserProfile({ age: 65, birthYear: '1959', birthMonth: '05', birthDay: '29', gender: '남성', region: '서울' });
+        setUserProfile({ age: 65, birthYear: '1959', birthMonth: '05', birthDay: '29', gender: '남성', region: '서울', district: '', dong: '' });
         setStep(QUIZ_QUESTIONS.length); // 결과 화면으로 바로 이동
       }
       
@@ -1479,7 +1495,7 @@ export default function Home() {
             else testAnswers[q.id] = q.correctAnswer;
           }
           setAnswers(testAnswers);
-          setUserProfile({ age: 65, birthYear: '1959', birthMonth: '05', birthDay: '29', gender: '남성', region: '서울' });
+          setUserProfile({ age: 65, birthYear: '1959', birthMonth: '05', birthDay: '29', gender: '남성', region: '서울', district: '', dong: '' });
           setStep(questionIndex); // 해당 문제로 바로 이동
         }
       }
@@ -1503,9 +1519,13 @@ export default function Home() {
 
   const stepRef = useRef(step);
   const isTransitioningRef = useRef(isTransitioning);
+  const questionStartTimeRef = useRef(0);
   
   useEffect(() => {
     stepRef.current = step;
+  }, [step]);
+  useEffect(() => {
+    if (step >= 0 && step < QUIZ_QUESTIONS.length) questionStartTimeRef.current = Date.now();
   }, [step]);
   
   useEffect(() => {
@@ -1855,10 +1875,14 @@ export default function Home() {
                     onChange={(e) => {
                       const raw = e.target.value;
                       const year = raw.length > 4 ? raw.slice(0, 4) : raw; // 생년 최대 4자리
+                      const parsed = year ? parseInt(year, 10) : NaN;
+                      const age = !isNaN(parsed) && parsed >= 1920 && parsed <= currentYear
+                        ? currentYear - parsed + 1
+                        : 0;
                       setUserProfile(prev => ({
                         ...prev,
                         birthYear: year,
-                        age: year ? currentYear - parseInt(year) + 1 : 0
+                        age: age
                       }));
                     }}
                     className="w-full p-4 rounded-xl border-2 border-gray-300 text-lg font-bold text-center focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none"
@@ -1939,7 +1963,7 @@ export default function Home() {
               <label className="block text-sm font-bold text-gray-700 mb-2">사는 지역</label>
               <select
                 value={userProfile.region}
-                onChange={(e) => setUserProfile(prev => ({ ...prev, region: e.target.value }))}
+                onChange={(e) => setUserProfile(prev => ({ ...prev, region: e.target.value, district: '', dong: '' }))}
                 className="w-full p-4 rounded-xl border-2 border-gray-300 text-lg font-bold text-center focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none bg-white"
               >
                 <option value="">지역을 선택하세요</option>
@@ -1961,6 +1985,46 @@ export default function Home() {
                 <option value="경남">경남</option>
                 <option value="제주">제주</option>
               </select>
+            </div>
+
+            {/* 구·동 (선택) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">구</label>
+                <select
+                  value={userProfile.district}
+                  onChange={(e) => setUserProfile(prev => ({ ...prev, district: e.target.value, dong: '' }))}
+                  className="w-full p-4 rounded-xl border-2 border-gray-300 text-base focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none bg-white"
+                >
+                  <option value="">선택하세요</option>
+                  {getDistrictsByRegion(userProfile.region).map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">동</label>
+                {getDongsByDistrict(userProfile.region, userProfile.district).length > 0 ? (
+                  <select
+                    value={userProfile.dong}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, dong: e.target.value }))}
+                    className="w-full p-4 rounded-xl border-2 border-gray-300 text-base focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none bg-white"
+                  >
+                    <option value="">선택하세요</option>
+                    {getDongsByDistrict(userProfile.region, userProfile.district).map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="선택 또는 직접 입력"
+                    value={userProfile.dong}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, dong: e.target.value.trim() }))}
+                    className="w-full p-4 rounded-xl border-2 border-gray-300 text-base focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32] outline-none bg-white placeholder:text-gray-400"
+                  />
+                )}
+              </div>
             </div>
           </div>
 
@@ -2007,10 +2071,37 @@ export default function Home() {
       
       let earned = 0;
       // -- 채점 로직 --
-      if (q.type === 'reaction-speed') {
+      if (q.type === 'clock') {
+        const a = ans && typeof ans === 'object' && 'answer' in ans ? (ans as { answer: string }).answer : ans;
+        const timeMs = ans && typeof ans === 'object' && 'timeMs' in ans ? (ans as { timeMs: number }).timeMs : undefined;
+        const correct = String(a) === String(q.correctAnswer);
+        if (!correct) earned = 0;
+        else if (timeMs != null) earned = timeMs < 5000 ? 10 : timeMs < 10000 ? 7 : timeMs < 15000 ? 5 : timeMs < 20000 ? 3 : 1;
+        else earned = q.score;
+      } else if (q.type === 'symbol-count') {
+        const sel = String(ans).replace(/[^0-9]/g, '') || '0';
+        const cor = String(q.correctAnswer || '').replace(/[^0-9]/g, '') || '0';
+        const diff = Math.abs(parseInt(sel, 10) - parseInt(cor, 10));
+        earned = diff === 0 ? q.score : diff === 1 ? Math.floor(q.score / 2) : 0;
+      } else if (q.type === 'complex-calculation') {
+        const correct = String(q.correctAnswer).trim();
+        const sel = String(ans).trim();
+        if (sel === correct) earned = q.score;
+        else if (correct === '1500원' && (sel === '1000원' || sel === '2000원')) earned = Math.floor(q.score / 2);
+        else earned = 0;
+      } else if (q.type === 'serial-subtraction') {
+        const correct = String(q.correctAnswer).trim();
+        const sel = String(ans).trim();
+        if (sel === correct) earned = q.score;
+        else if (correct === '79' && (sel === '72' || sel === '86')) earned = Math.floor(q.score / 2);
+        else earned = 0;
+      } else if (q.type === 'reaction-speed') {
         earned = (ans <= 400) ? q.score : Math.max(0, q.score - Math.ceil((ans-400)/50));
       } else if (q.type === 'schulte-table') {
-        earned = (ans <= 18 && ans > 0) ? q.score : Math.max(0, q.score - Math.ceil(ans-18));
+        const sec = typeof ans === 'number' ? ans : 0;
+        if (sec <= 0) earned = 0;
+        else if (sec <= 18) earned = q.score;
+        else earned = Math.max(0, q.score - Math.ceil(sec - 18));
       } else if (q.type === 'whack-a-mole') {
         earned = Math.max(0, Math.round(q.score * ((ans.acc || 0)/100)) - (ans.wro || 0));
       } else if (q.type === 'reverse-number-input') {
@@ -2021,8 +2112,21 @@ export default function Home() {
       } else if (q.type === 'multi-choice') {
          const match = (q.correctAnswer as string[]).filter(v => (Array.isArray(ans) ? ans : []).includes(v)).length;
          earned = Math.round(q.score * (match / 3));
-      } else if (['card-match','word-fluency','pattern-logic'].includes(q.type)) {
-         if (ans === 'done' || ans === true) earned = q.score;
+      } else if (q.type === 'word-fluency') {
+        if (ans === 'done' || ans === true) earned = q.score;
+        else if (ans && typeof ans === 'object' && 'wrong' in ans) {
+          const wrong = Number((ans as { wrong?: number }).wrong) || 0;
+          earned = Math.max(0, q.score - wrong * 2);
+        }
+      } else if (q.type === 'card-match') {
+        if (ans === 'done' || ans === true) earned = q.score;
+        else if (typeof ans === 'number') {
+          const extraAttempts = Math.max(0, ans - 6);
+          earned = Math.max(0, q.score - Math.floor(extraAttempts * 1.5));
+        }
+      } else if (q.type === 'pattern-logic') {
+        const wrongAttempts = ans && typeof ans === 'object' && 'wrongAttempts' in ans ? (ans as { wrongAttempts: number }).wrongAttempts : 0;
+        earned = Math.max(0, q.score - wrongAttempts);
       } else if (q.type === 'memory-input') {
         earned = ans === 'viewed' ? q.score : 0;
       } else if (q.type === 'family-care') {
@@ -2377,10 +2481,16 @@ export default function Home() {
                 />
                 <input 
                     type="tel" 
-                    placeholder="휴대폰 번호 입력 (-없이)" 
+                    placeholder="010-1234-5678" 
+                    maxLength={13}
                     className="w-full p-4 rounded-xl bg-white text-gray-900 text-center font-bold text-lg shadow-lg border-2 border-white/50 outline-none focus:ring-4 focus:ring-yellow-400 focus:border-yellow-400" 
                     value={phoneNumber} 
-                    onChange={(e) => setPhoneNumber(e.target.value)} 
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      if (raw.length <= 3) setPhoneNumber(raw);
+                      else if (raw.length <= 7) setPhoneNumber(`${raw.slice(0, 3)}-${raw.slice(3)}`);
+                      else setPhoneNumber(`${raw.slice(0, 3)}-${raw.slice(3, 7)}-${raw.slice(7)}`);
+                    }} 
                 />
                 
                 <div className="bg-black/20 p-2.5 rounded-lg text-left space-y-2">
@@ -2603,16 +2713,18 @@ export default function Home() {
                             return alert('👤 이름 확인\n\n성함을 정확히 입력해주세요.\n(최소 2자 이상)');
                         }
                         
-                        if(phoneNumber.length < 10) {
-                            return alert('📱 전화번호 확인\n\n연락받으실 휴대폰 번호를\n정확히 입력해주세요.');
+                        const phoneDigits = phoneNumber.replace(/\D/g, '');
+                        if(phoneDigits.length !== 11 || !/^\d{3}-\d{4}-\d{4}$/.test(phoneNumber)) {
+                            return alert('📱 전화번호 확인\n\n연락받으실 휴대폰 번호를\n3-4-4 자리 형식으로 입력해주세요.\n(예: 010-1234-5678)');
                         }
                         
                         // 2차 최종 확인: 인트로 정보(생년월일·성별·지역) + 이름·연락처 + 동의 함께 전송됨
                         const birthDateStr = userProfile.birthYear 
                             ? `${userProfile.birthYear}${userProfile.birthMonth ? ` ${String(userProfile.birthMonth).padStart(2, '0')}` : ''}${userProfile.birthDay ? ` ${String(userProfile.birthDay).padStart(2, '0')}` : ''}`
                             : '';
+                        const regionLine = [userProfile.region, userProfile.district, userProfile.dong].filter(Boolean).join(' ') || '-';
                         const introLine = (userProfile.birthYear || userProfile.gender || userProfile.region)
-                            ? `• 생년월일: ${birthDateStr || '-'} / 성별: ${userProfile.gender || '-'} / 지역: ${userProfile.region || '-'}\n`
+                            ? `• 생년월일: ${birthDateStr || '-'} / 성별: ${userProfile.gender || '-'} / 지역: ${regionLine}\n`
                             : '';
                         const confirmMessage = `📞 전문 보험설계사 연락 안내\n\n입력하신 정보 (함께 전송됩니다):\n${introLine}• 이름: ${userName}\n• 연락처: ${phoneNumber}\n• 이용약관·개인정보·제3자 제공 동의 완료\n\n✅ 전문 보험설계사가 직접 연락드려\n   • 무료 보장분석\n   • 맞춤형 간병비 보험 설계안\n   을 무료로 제공해드립니다.\n\n⚠️ 연락을 받으시겠습니까?\n\n(취소하시면 신청이 되지 않습니다)`;
                         
@@ -2638,6 +2750,29 @@ export default function Home() {
                                 };
                             });
 
+                            // 고객용 보고서 링크 생성 (별도 보고서 페이지)
+                            const reportPayload = {
+                                total,
+                                grade,
+                                limitAmount,
+                                status,
+                                careType,
+                                realGovSupport,
+                                coPay,
+                                nonCoveredCost,
+                                finalSelfPay,
+                                futureTotalCost,
+                                futureGovSupport,
+                                futureSelfPay,
+                                futureDetails,
+                                categoryScores,
+                                familyWarning,
+                                userName,
+                            };
+                            const reportJson = JSON.stringify(reportPayload);
+                            const reportBase64 = btoa(encodeURIComponent(reportJson)).replace(/\+/g, '-').replace(/\//g, '_');
+                            const reportUrl = typeof window !== 'undefined' ? `${window.location.origin}/report?d=${reportBase64}` : '';
+
                             console.log('📧 이메일 전송 요청 시작...', {
                                 userName,
                                 phoneNumber,
@@ -2648,6 +2783,19 @@ export default function Home() {
                                 agree2,
                             });
 
+                            const now = new Date();
+                            const applicationDateTime = `${now.getFullYear()}. ${String(now.getMonth() + 1).padStart(2, '0')}. ${String(now.getDate()).padStart(2, '0')}. ${now.getHours() < 12 ? '오전' : '오후'} ${(now.getHours() % 12) || 12}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+                            const by = userProfile.birthYear ? parseInt(String(userProfile.birthYear), 10) : 0;
+                            const bm = userProfile.birthMonth ? parseInt(String(userProfile.birthMonth), 10) : 0;
+                            const bd = userProfile.birthDay ? parseInt(String(userProfile.birthDay), 10) : 0;
+                            let submitAge = userProfile.age ?? 0;
+                            if (by && bm && bd && !isNaN(by) && !isNaN(bm) && !isNaN(bd)) {
+                              let manAge = now.getFullYear() - by;
+                              if (now.getMonth() + 1 < bm || (now.getMonth() + 1 === bm && now.getDate() < bd)) manAge--;
+                              submitAge = manAge;
+                            }
+
                             const response = await fetch('/api/send-email', {
                                 method: 'POST',
                                 headers: {
@@ -2656,35 +2804,35 @@ export default function Home() {
                                 body: JSON.stringify({
                                     userName,
                                     phoneNumber,
-                                    // 사용자 기본 정보 (인트로 생년월일·성별·지역)
+                                    reportUrl,
                                     birthYear: userProfile.birthYear,
                                     birthMonth: userProfile.birthMonth,
                                     birthDay: userProfile.birthDay,
                                     gender: userProfile.gender,
                                     region: userProfile.region,
-                                    age: userProfile.age,
+                                    district: userProfile.district,
+                                    dong: userProfile.dong,
+                                    age: submitAge,
                                     total,
                                     grade,
+                                    limitAmount,
                                     status,
                                     careType,
-                                    // 2026년 현재 비용
                                     realGovSupport,
                                     coPay,
                                     nonCoveredCost,
                                     finalSelfPay,
-                                    // 2036년 미래 비용
                                     futureTotalCost,
                                     futureGovSupport,
                                     futureSelfPay,
                                     futureDetails,
-                                    // 영역별 상세 점수
                                     categoryScores,
-                                    // 기타
                                     familyWarning,
-                                    agree0, // 이용약관 동의
-                                    agree1, // 개인정보 수집 및 이용 동의
-                                    agree2, // 마케팅 활용 동의 (선택)
-                                    agree3, // 개인정보 제3자 제공 동의 (카카오톡)
+                                    applicationDateTime,
+                                    agree0,
+                                    agree1,
+                                    agree2,
+                                    agree3,
                                 }),
                             });
 
@@ -2777,7 +2925,7 @@ export default function Home() {
                           return (
                             <button
                               key={idx}
-                              onClick={() => goNext(option)}
+                              onClick={() => goNext({ answer: option, timeMs: Date.now() - questionStartTimeRef.current })}
                               className="relative w-full flex flex-col items-center justify-center bg-white border-2 border-gray-300 rounded-2xl p-4 shadow-md touch-manipulation active:scale-95 active:bg-green-50 active:border-green-500 aspect-square"
                             >
                               {/* 시계 */}
@@ -2839,16 +2987,16 @@ export default function Home() {
                 case 'symbol-count': return <SymbolCountGame onAnswer={goNext} />;
                 case 'reverse-number-input': return <ReverseNumberGame correctAnswer={q.correctAnswer} onComplete={goNext} />;
                 case 'reaction-speed': return <ReactionGame onComplete={goNext} />;
-                case 'word-fluency': return <WordFluencyGame onComplete={() => goNext('done')} />;
+                case 'word-fluency': return <WordFluencyGame onComplete={(res) => goNext(res)} />;
                 case 'whack-a-mole': 
                   console.log('🔍 [DEBUG] 12번 문제 렌더링:', { step, questionId: q.id, timeLimit: q.timeLimit });
                   return <WhackMoleGame timeLimit={q.timeLimit || 20} onComplete={(acc, c, w) => {
                     console.log('🔍 [DEBUG] WhackMoleGame onComplete 호출:', { acc, c, w });
                     goNext({acc, c, wro: w});
                   }} />;
-                case 'card-match': return <CardGame onComplete={() => goNext('done')} />;
+                case 'card-match': return <CardGame onComplete={(attempts) => goNext(attempts)} />;
                 case 'schulte-table': return <SchulteTableGame timeLimit={q.timeLimit} onComplete={(t) => goNext(t)} />;
-                case 'pattern-logic': return <PatternLogicGame onComplete={() => goNext('done')} />;
+                case 'pattern-logic': return <PatternLogicGame onComplete={(res) => goNext(res)} />;
                 case 'multi-choice': 
                   console.log('🔍 [DEBUG] 10번 문제 렌더링:', { step, questionId: q.id, options: q.options });
                   return <MultiChoiceGame options={q.options || []} onComplete={(selected) => {

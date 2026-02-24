@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import { readFile, writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { getCostBreakdownText } from '../../../lib/report-analysis';
 
 export async function POST(request: NextRequest) {
   console.log('📧 [API] 이메일 전송 요청 수신');
@@ -14,9 +17,12 @@ export async function POST(request: NextRequest) {
       birthDay,
       gender,
       region,
+      district,
+      dong,
       age,
       total, 
-      grade, 
+      grade,
+      limitAmount,
       status,
       careType,
       realGovSupport,
@@ -29,10 +35,12 @@ export async function POST(request: NextRequest) {
       futureDetails,
       categoryScores,
       familyWarning,
-      agree0, // 이용약관 동의
-      agree1, // 개인정보 수집 및 이용 동의
-      agree2, // 마케팅 활용 동의 (선택)
-      agree3  // 개인정보 제3자 제공 동의 (카카오톡)
+      applicationDateTime,
+      agree0,
+      agree1,
+      agree2,
+      agree3,
+      reportUrl,
     } = body;
 
     console.log('📧 [API] 요청 데이터:', {
@@ -146,7 +154,7 @@ export async function POST(request: NextRequest) {
               </tr>
               <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px; background-color: #f1f5f9;">사는 지역</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">${region || '미입력'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: bold;">${[region, district, dong].filter(Boolean).join(' ') || '미입력'}</td>
               </tr>
               <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; background-color: #f1f5f9;">검진 총점</td>
@@ -397,24 +405,82 @@ export async function POST(request: NextRequest) {
       </div>
     `;
 
-    // 이메일 전송
-    console.log('📧 [API] 이메일 전송 시작...', {
-      from: emailUser,
-      to: recipientEmail,
-      subject: `[뇌 건강 검진] 신규 상담 신청 - ${userName || '이름미입력'} (${phoneNumber})`,
+    // JSON만 첨부 (PDF는 관리자 페이지에서 따로 생성)
+    const dateStr = new Date().toISOString().split('T')[0];
+    const baseName = `치매검사보고서_${userName || '고객'}_${dateStr}`;
+    // 월산출비용(월 예상 비용 요약) — 보고서 데이터·신청 목록에 포함
+    const costBreakdown = getCostBreakdownText({
+      finalSelfPay,
+      realGovSupport,
+      futureTotalCost,
+      futureGovSupport,
+      futureSelfPay,
+      futureDetails,
     });
+    const reportDataForJson = {
+      userName,
+      phoneNumber,
+      birthYear,
+      birthMonth,
+      birthDay,
+      gender,
+      region,
+      district,
+      dong,
+      age,
+      total,
+      grade,
+      limitAmount: body.limitAmount ?? 0,
+      status,
+      careType,
+      realGovSupport,
+      coPay,
+      nonCoveredCost,
+      finalSelfPay,
+      futureTotalCost,
+      futureGovSupport,
+      futureSelfPay,
+      futureDetails,
+      categoryScores,
+      familyWarning,
+      applicationDateTime: applicationDateTime || new Date().toISOString(),
+      costBreakdown,
+    };
 
-    const mailResult = await transporter.sendMail({
+    const mailOptions: any = {
       from: `"뇌 건강 검진 시스템" <${emailUser}>`,
       to: recipientEmail,
       subject: `[뇌 건강 검진] 신규 상담 신청 - ${userName || '이름미입력'} (${phoneNumber})`,
       html: htmlContent,
-    });
+      attachments: [
+        { filename: `${baseName}_데이터.json`, content: Buffer.from(JSON.stringify(reportDataForJson, null, 2), 'utf-8'), contentType: 'application/json' },
+      ],
+    };
 
-    console.log('✅ [API] 이메일 전송 성공!', {
-      messageId: mailResult.messageId,
-      response: mailResult.response,
-    });
+    const mailResult = await transporter.sendMail(mailOptions);
+    console.log('✅ [API] 이메일 전송 성공!', { messageId: mailResult.messageId });
+
+    // 신청 목록을 프로젝트 data/applicants.json 에 추가
+    try {
+      const dataDir = join(process.cwd(), 'data');
+      const applicantsPath = join(dataDir, 'applicants.json');
+      const appliedAt = new Date().toISOString();
+      const entry = { appliedAt, ...reportDataForJson };
+
+      let list: unknown[] = [];
+      try {
+        const raw = await readFile(applicantsPath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        list = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        await mkdir(dataDir, { recursive: true }).catch(() => {});
+      }
+      list.push(entry);
+      await writeFile(applicantsPath, JSON.stringify(list, null, 2), 'utf-8');
+      console.log('✅ [API] 신청 목록 저장:', applicantsPath);
+    } catch (fileErr) {
+      console.warn('⚠️ [API] 신청 목록 파일 저장 실패 (이메일은 전송됨):', fileErr);
+    }
 
     return NextResponse.json({ success: true, message: '이메일이 성공적으로 전송되었습니다.' });
   } catch (error: any) {
