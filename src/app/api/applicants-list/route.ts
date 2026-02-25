@@ -1,21 +1,14 @@
 /**
- * 신청 목록 조회·삭제 (data/applicants.json). 관리자용.
+ * 신청 목록 조회·삭제. 로컬은 data/applicants.json, 프로덕션은 KV. 관리자용.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-
-const getApplicantsPath = () => join(process.cwd(), 'data', 'applicants.json');
+import { getApplicantsList, deleteApplicantByIndex } from '@/lib/applicants-storage';
 
 export async function GET() {
   try {
-    const raw = await readFile(getApplicantsPath(), 'utf-8');
-    const list = JSON.parse(raw);
-    return NextResponse.json(Array.isArray(list) ? list : []);
+    const list = await getApplicantsList();
+    return NextResponse.json(list);
   } catch (e: unknown) {
-    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') {
-      return NextResponse.json([]);
-    }
     console.error('[applicants-list]', e);
     return NextResponse.json(
       { error: '목록을 불러올 수 없습니다.', details: (e as Error).message },
@@ -29,26 +22,12 @@ export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const index = typeof body.index === 'number' ? body.index : -1;
-    const path = getApplicantsPath();
-    let list: unknown[];
-    try {
-      const raw = await readFile(path, 'utf-8');
-      list = JSON.parse(raw);
-    } catch (e: unknown) {
-      if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') {
-        return NextResponse.json({ ok: true, list: [] });
-      }
-      throw e;
-    }
-    if (!Array.isArray(list)) list = [];
+    const list = await getApplicantsList();
     if (index < 0 || index >= list.length) {
       return NextResponse.json({ error: '잘못된 인덱스입니다.', list }, { status: 400 });
     }
-    list.splice(index, 1);
-    const dataDir = join(process.cwd(), 'data');
-    await mkdir(dataDir, { recursive: true });
-    await writeFile(path, JSON.stringify(list, null, 2), 'utf-8');
-    return NextResponse.json({ ok: true, list });
+    const newList = await deleteApplicantByIndex(index);
+    return NextResponse.json({ ok: true, list: newList });
   } catch (e: unknown) {
     console.error('[applicants-list DELETE]', e);
     return NextResponse.json(
