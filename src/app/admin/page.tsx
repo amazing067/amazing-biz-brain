@@ -405,7 +405,20 @@ export default function AdminReportPage() {
                   const originalIndex = applicantsList.length - 1 - i;
                   return (
                     <tr key={originalIndex} className="border-t border-gray-100 hover:bg-gray-50">
-                      <td className="py-2 px-3 text-gray-600 truncate">{(row.appliedAt as string)?.replace('T', ' ').slice(0, 19) ?? '-'}</td>
+                      <td className="py-2 px-3 text-gray-600 truncate">
+                        {(() => {
+                          const clientTime = row.applicationDateTime as string | undefined;
+                          if (clientTime) return clientTime;
+                          const iso = row.appliedAt as string | undefined;
+                          if (!iso) return '-';
+                          try {
+                            const d = new Date(iso);
+                            return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                          } catch {
+                            return iso.replace('T', ' ').slice(0, 19);
+                          }
+                        })()}
+                      </td>
                       <td className="py-2 px-3 font-medium truncate">{(row.userName as string) ?? '-'}</td>
                       <td className="py-2 px-3 truncate">{(row.phoneNumber as string) ?? '-'}</td>
                       <td className="py-2 px-3 text-right">{(row.total as number) ?? '-'}점</td>
