@@ -176,13 +176,10 @@ export async function POST(request: NextRequest) {
               </tr>
               <tr>
                 <td style="padding: 10px; font-weight: bold; background-color: #f1f5f9;">신청 일시</td>
-                <td style="padding: 10px;">${new Date().toLocaleString('ko-KR', { 
-                  year: 'numeric', 
-                  month: '2-digit', 
-                  day: '2-digit', 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}</td>
+                <td style="padding: 10px;">${applicationDateTime || (() => {
+                  const d = new Date();
+                  return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                })()}</td>
               </tr>
             </table>
           </div>
