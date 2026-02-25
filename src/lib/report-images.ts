@@ -17,6 +17,9 @@ const DEFAULT_ARGS = [
   '--no-zygote',
 ];
 
+/** PNG 스크린샷 시 해상도 배율 (2=2x, 4=4x). 높을수록 선명하나 파일 크기·메모리 증가 */
+const PNG_DEVICE_SCALE = 4;
+
 function isServerless(): boolean {
   return process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME != null || process.cwd().startsWith('/var/task');
 }
@@ -312,7 +315,7 @@ async function htmlToPng(html: string, viewport = { width: 400, height: 420 }): 
   try {
     const page = await browser.newPage();
     page.setDefaultTimeout(60000);
-    await page.setViewport({ ...viewport, deviceScaleFactor: 1 });
+    await page.setViewport({ ...viewport, deviceScaleFactor: PNG_DEVICE_SCALE });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
     await new Promise((r) => setTimeout(r, 600));
     const buf = await page.screenshot({ type: 'png' });
@@ -340,8 +343,7 @@ async function htmlToPngContentHeight(html: string, width: number, omitBackgroun
   try {
     const page = await browser.newPage();
     page.setDefaultTimeout(60000);
-    const deviceScaleFactor = 3;
-    await page.setViewport({ width, height: 2400, deviceScaleFactor });
+    await page.setViewport({ width, height: 2400, deviceScaleFactor: PNG_DEVICE_SCALE });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
     await new Promise((r) => setTimeout(r, 500));
     const contentHeight = await (page.evaluate as (fn: () => number) => Promise<number>)(() => {
@@ -349,7 +351,7 @@ async function htmlToPngContentHeight(html: string, width: number, omitBackgroun
       const h = pageEl ? pageEl.scrollHeight : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
       return Math.min(Math.max(Math.ceil(h) + 4, 500), 5000);
     });
-    await page.setViewport({ width, height: contentHeight, deviceScaleFactor });
+    await page.setViewport({ width, height: contentHeight, deviceScaleFactor: PNG_DEVICE_SCALE });
     await new Promise((r) => setTimeout(r, 100));
     const buf = await page.screenshot({ type: 'png', ...(omitBackground ? { omitBackground: true } : {}) });
     const buffer = Buffer.from(buf);
@@ -364,7 +366,6 @@ async function htmlToPngContentHeight(html: string, width: number, omitBackgroun
 export async function generateDiagramPng(data: Record<string, unknown>): Promise<Buffer> {
   const html = getDiagramHTML(data);
   const widthPx = 650;
-  const scale = 3;
   const rowCount = Object.entries((data.categoryScores || {}) as Record<string, unknown>).filter(([, v]) => ((v as { max?: number })?.max ?? 0) > 0).length || 1;
   const estimatedHeight = 16 + Math.max(300, 24 + rowCount * 20);
   const launchOpts = await getLaunchOptions();
@@ -381,7 +382,7 @@ export async function generateDiagramPng(data: Record<string, unknown>): Promise
   try {
     const page = await browser.newPage();
     page.setDefaultTimeout(60000);
-    await page.setViewport({ width: widthPx, height: Math.min(estimatedHeight, 400), deviceScaleFactor: scale });
+    await page.setViewport({ width: widthPx, height: Math.min(estimatedHeight, 400), deviceScaleFactor: PNG_DEVICE_SCALE });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
     await new Promise((r) => setTimeout(r, 400));
     const buf = await page.screenshot({
@@ -401,6 +402,98 @@ export async function generateCostAnalysisPng(data: Record<string, unknown>): Pr
   return htmlToPngContentHeight(html, 560, true);
 }
 
+/** 마무리 페이지 HTML (보고서 끝맺음용 PNG 전용) */
+function getClosingPageHTML(data: Record<string, unknown>): string {
+  const userName = (data.userName || '고객').toString();
+  return `
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: transparent; color: #1f2937; line-height: 1.5; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+    .page { width: 520px; margin: 0 auto; padding: 24px; padding-bottom: 20px; }
+    .header-blue { background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #3b82f6 100%); color: #fff; padding: 16px 24px; margin: -24px -24px 0 -24px; border-radius: 0 0 0 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 14px rgba(30,64,175,0.25); }
+    .header-blue .title { font-size: 20px; font-weight: 800; }
+    .header-blue .sub { font-size: 11px; opacity: 0.92; margin-top: 2px; }
+    .header-icon { width: 40px; height: 40px; background: rgba(255,255,255,0.25); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .content-box { padding: 20px 0 0; }
+    .thanks { font-size: 20px; font-weight: 800; color: #1e293b; text-align: center; margin-bottom: 12px; }
+    .thanks-sub { font-size: 14px; color: #64748b; text-align: center; margin-bottom: 24px; }
+    .user-msg { font-size: 16px; font-weight: 700; color: #1e40af; text-align: center; margin-bottom: 24px; line-height: 1.65; padding: 16px 20px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-radius: 12px; border-left: 4px solid #2563eb; }
+    .section-tit { font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; display: flex; align-items: center; gap: 6px; }
+    .notice-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 22px; margin-bottom: 18px; }
+    .notice-box .tit { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 10px; }
+    .notice-box ul { margin: 0; padding-left: 20px; font-size: 11px; color: #475569; line-height: 1.8; }
+    .tip-box { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 12px; padding: 16px 22px; margin-bottom: 18px; }
+    .tip-box .tit { font-size: 13px; font-weight: 700; color: #166534; margin-bottom: 10px; }
+    .tip-box ul { margin: 0; padding-left: 20px; font-size: 12px; color: #15803d; line-height: 1.85; }
+    .next-box { background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); border: 1px solid #fde047; border-radius: 12px; padding: 16px 22px; margin-bottom: 18px; }
+    .next-box .tit { font-size: 13px; font-weight: 700; color: #854d0e; margin-bottom: 10px; }
+    .next-box p { font-size: 12px; color: #713f12; line-height: 1.8; margin-bottom: 6px; }
+    .contact-box { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 18px 22px; }
+    .contact-box .tit { font-size: 14px; font-weight: 800; color: #1d4ed8; margin-bottom: 8px; }
+    .contact-box p { font-size: 13px; color: #1e40af; line-height: 1.7; font-weight: 500; }
+    .footer-msg { font-size: 11px; color: #94a3b8; text-align: center; margin-top: 12px; margin-bottom: 0; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header-blue">
+      <div>
+        <div class="title">마무리</div>
+        <div class="sub">Closing · 검사 결과 요약의 끝</div>
+      </div>
+      <div class="header-icon">✓</div>
+    </div>
+    <div class="content-box">
+      <p class="thanks">본 검사 결과지를 읽어 주셔서 감사합니다.</p>
+      <p class="thanks-sub">이 자료는 뇌 건강 관리를 위한 참고용입니다.</p>
+      <p class="user-msg">${escapeHtml(userName)} 님의 뇌 건강을 위해<br/>정기 검진과 꾸준한 관리가 큰 도움이 됩니다.<br/>오늘부터 작은 습관부터 시작해 보세요.</p>
+
+      <div class="notice-box">
+        <p class="section-tit">📌 꼭 알아두세요</p>
+        <ul>
+          <li>본 검사는 <strong>선별 목적</strong>이며, 확진이 아닙니다. 정확한 판단은 의료기관 검진을 받아 주세요.</li>
+          <li>궁금한 점이나 추가 상담이 필요하시면 <strong>담당 설계사</strong>에게 문의해 주세요.</li>
+          <li>인지지원·장기요양 등 제도 안내는 공단·지자체 공식 자료를 참고해 주시기 바랍니다.</li>
+        </ul>
+      </div>
+
+      <div class="tip-box">
+        <p class="tit">💡 일상에서 실천하기</p>
+        <ul>
+          <li>규칙적인 수면, 균형 잡힌 식사, 가벼운 산책이나 스트레칭을 꾸준히 해 보세요.</li>
+          <li>가족·친구와 대화하고, 취미 활동을 이어가면 인지 유지에 도움이 됩니다.</li>
+          <li>검사 결과지에 적힌 ‘다음에 할 일’을 참고해 단계별로 점검해 보세요.</li>
+        </ul>
+      </div>
+
+      <div class="next-box">
+        <p class="tit">📋 다음에 하실 일</p>
+        <p>앞서 안내한 ‘다음 단계’ 페이지의 항목을 순서대로 확인하시고, 필요 시 담당 설계사와 상담 일정을 잡아 보시기 바랍니다.</p>
+      </div>
+
+      <div class="contact-box">
+        <p class="tit">📞 추가 상담이 필요하시면</p>
+        <p>담당 설계사에게 연락해 주시면 검사 결과 해석, 보험·장기요양 제도 안내 등 도움을 드리겠습니다.</p>
+      </div>
+
+      <p class="footer-msg">본 자료는 제공 시점 기준으로 작성되었습니다. 문의사항은 담당자에게 연락해 주세요.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+export async function generateClosingPng(data: Record<string, unknown>): Promise<Buffer> {
+  const html = getClosingPageHTML(data);
+  return htmlToPngContentHeight(html, 560, true);
+}
+
 /** 장기요양 국가 지원금 이용·지급 안내 (공식 자료 기준, 데이터 불필요) */
 function getGovSupportGuideHTML(): string {
   return `
@@ -411,24 +504,23 @@ function getGovSupportGuideHTML(): string {
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.5; font-size: 14px; }
-    .page { width: 560px; background: #fff; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; }
-    .top-bar { height: 6px; background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%); border-radius: 8px 8px 0 0; margin: -24px -24px 20px -24px; }
-    h2 { font-size: 18px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
-    .sub { font-size: 12px; color: #64748b; margin-bottom: 18px; }
-    .section { margin-bottom: 18px; }
-    .section h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
-    .section p, .section li { font-size: 13px; color: #334155; margin-bottom: 6px; }
-    .section ul { margin-left: 16px; padding-left: 4px; }
-    .section li { margin-bottom: 4px; }
+    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.45; font-size: 13px; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+    .page { width: 560px; background: #fff; padding: 18px 24px 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
+    .top-bar { height: 5px; background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%); border-radius: 8px 8px 0 0; margin: -18px -24px 14px -24px; }
+    h2 { font-size: 17px; font-weight: 800; color: #1e293b; margin-bottom: 2px; }
+    .sub { font-size: 11px; color: #64748b; margin-bottom: 12px; }
+    .section { margin-bottom: 12px; }
+    .section h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid #e2e8f0; }
+    .section p, .section li { font-size: 12px; color: #334155; margin-bottom: 4px; line-height: 1.5; }
+    .section ul { margin-left: 14px; padding-left: 2px; }
+    .section li { margin-bottom: 2px; }
     .highlight { background: #eff6ff; color: #1d4ed8; font-weight: 700; padding: 0 4px; }
     .red { color: #dc2626; font-weight: 700; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
-    th, td { padding: 8px 10px; border: 1px solid #e2e8f0; text-align: left; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; }
+    th, td { padding: 4px 8px; border: 1px solid #e2e8f0; text-align: left; }
     th { background: #f1f5f9; font-weight: 700; color: #334155; }
-    .source { font-size: 11px; color: #94a3b8; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
-    .source-block { font-size: 11px; color: #94a3b8; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; line-height: 1.5; }
-    .source-block p { margin: 0 0 4px 0; }
+    .source-block { font-size: 10px; color: #94a3b8; margin-top: 10px; padding-top: 8px; border-top: 1px solid #e2e8f0; line-height: 1.4; }
+    .source-block p { margin: 0 0 2px 0; }
     .source-block p:last-child { margin-bottom: 0; }
   </style>
 </head>
@@ -441,7 +533,7 @@ function getGovSupportGuideHTML(): string {
     <div class="section">
       <h3>1. 한도액이란?</h3>
       <p>등급별로 <strong>매월 이용할 수 있는 장기요양 급여 비용의 상한선</strong>입니다. 이 한도 안에서 서비스를 이용하면, 본인은 일부만 부담하고 나머지는 공단(국가)이 부담합니다.</p>
-      <p style="font-size: 12px; font-weight: 700; color: #374151; margin-top: 10px; margin-bottom: 4px;">등급별 재가급여 월 한도액 (2026년 기준 참고)</p>
+      <p style="font-size: 11px; font-weight: 700; color: #374151; margin-top: 6px; margin-bottom: 2px;">등급별 재가급여 월 한도액 (2026년 기준 참고)</p>
       <table>
         <tr><th>등급</th><th style="text-align: right;">월 한도액</th></tr>
         <tr><td>1등급 (최중증/와상)</td><td style="text-align: right;">2,512,900원</td></tr>
@@ -451,7 +543,7 @@ function getGovSupportGuideHTML(): string {
         <tr><td>5등급 (치매 등)</td><td style="text-align: right;">1,208,900원</td></tr>
         <tr><td>인지지원등급</td><td style="text-align: right;">676,320원</td></tr>
       </table>
-      <p style="font-size: 11px; color: #64748b; margin-top: 6px;">※ 장기요양 수가 고시에 따라 변경될 수 있습니다.</p>
+      <p style="font-size: 10px; color: #64748b; margin-top: 3px;">※ 장기요양 수가 고시에 따라 변경될 수 있습니다.</p>
     </div>
 
     <div class="section">
@@ -462,7 +554,7 @@ function getGovSupportGuideHTML(): string {
         <tr><td>재가급여 (방문요양·데이케어 등)</td><td class="red">15%</td><td class="highlight">85%</td></tr>
         <tr><td>시설급여 (요양원 등)</td><td class="red">20%</td><td class="highlight">80%</td></tr>
       </table>
-      <p style="margin-top: 8px; font-size: 12px;">※ 경감대상자(저소득 등)는 본인부담 9%, 6% 등 적용 가능 (보건복지부 고시)</p>
+      <p style="margin-top: 4px; font-size: 11px;">※ 경감대상자(저소득 등)는 본인부담 9%, 6% 등 적용 가능 (보건복지부 고시)</p>
     </div>
 
     <div class="section">
