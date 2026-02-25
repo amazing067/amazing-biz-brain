@@ -213,7 +213,15 @@ export default function AdminReportPage() {
       'explanation_2.png',
       'png',
       { part: 2, ...(analysisResult ? { analysisResult } : {}) },
-      (d) => `${name(d)}_부가설명_2.png`
+      (d) => `${name(d)}_부가설명_2_분석결과.png`
+    );
+  const handleExplanationPng3 = () =>
+    runGenerate(
+      '/api/generate-report-explanation-image',
+      'explanation_3.png',
+      'png',
+      { part: 3, ...(analysisResult ? { analysisResult } : {}) },
+      (d) => `${name(d)}_부가설명_3_다음단계.png`
     );
 
   const handleGovSupportGuidePng = async () => {
@@ -318,10 +326,23 @@ export default function AdminReportPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error || '부가설명 2 생성 실패');
       }
-      triggerDownload(await res.blob(), `${userName}_부가설명_2.png`);
+      triggerDownload(await res.blob(), `${userName}_부가설명_2_분석결과.png`);
+      await delay(400);
+
+      setMessage('부가설명 3 생성 중…');
+      res = await fetch('/api/generate-report-explanation-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, part: 3, ...(analysisResultForDownload ? { analysisResult: analysisResultForDownload } : {}) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || '부가설명 3 생성 실패');
+      }
+      triggerDownload(await res.blob(), `${userName}_부가설명_3_다음단계.png`);
 
       setStatus('done');
-      setMessage(analysisResultForDownload ? '4개 이미지 다운로드 완료 (AI 분석 반영).' : '4개 이미지 다운로드 완료.');
+      setMessage(analysisResultForDownload ? '5개 이미지 다운로드 완료 (AI 분석 반영).' : '5개 이미지 다운로드 완료.');
     } catch (e: unknown) {
       setStatus('error');
       setMessage((e as Error)?.message || '전체 다운로드 중 오류가 발생했습니다.');
@@ -657,7 +678,15 @@ export default function AdminReportPage() {
               disabled={!hasReportData() || status === 'loading'}
               className="py-2.5 px-4 bg-violet-100 text-violet-800 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              부가설명 PNG (2) 분석·다음단계
+              부가설명 PNG (2) 분석결과
+            </button>
+            <button
+              type="button"
+              onClick={handleExplanationPng3}
+              disabled={!hasReportData() || status === 'loading'}
+              className="py-2.5 px-4 bg-violet-100 text-violet-800 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              부가설명 PNG (3) 다음단계
             </button>
             <button
               type="button"
@@ -668,7 +697,7 @@ export default function AdminReportPage() {
               국가 지원금 안내 PNG
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-1">부가설명 1장=비용·보험료, 2장=다음 단계·주의사항. <strong>국가 지원금 안내 PNG</strong>는 공식 자료 기준 이용·지급 안내(데이터 불필요). <strong>분석 보기</strong>를 먼저 실행하면 화면에 나온 AI 분석 결과가 그대로 부가설명 PNG(1·2)에 반영됩니다. <strong>전체 다운로드</strong>는 자동으로 AI 분석을 호출한 뒤 같은 내용으로 PNG를 뽑습니다.</p>
+          <p className="text-xs text-gray-500 mt-1">부가설명 1장=비용·보험료, 2장=분석결과(인지 위치·위험 해석·이번 달 행동), 3장=다음단계(할 일·점검 영역). <strong>국가 지원금 안내 PNG</strong>는 공식 자료 기준 이용·지급 안내(데이터 불필요). <strong>분석 보기</strong>를 먼저 실행하면 AI 분석 결과가 부가설명 PNG(1·2·3)에 반영됩니다. <strong>전체 다운로드</strong>는 AI 분석 후 5개 PNG를 뽑습니다.</p>
 
           {message && (
             <p className={`text-sm ${status === 'error' ? 'text-red-600' : 'text-gray-600'}`}>
@@ -681,7 +710,7 @@ export default function AdminReportPage() {
           <p className="font-medium text-gray-700 mb-2">리포터 만드는 흐름</p>
           <ol className="list-decimal list-inside space-y-1">
             <li>이메일로 받은 <strong>치매검사보고서_이름_날짜_데이터.json</strong> 을 여기서 선택 (드래그 앤 드롭 가능)</li>
-            <li><strong>다이어그램 PNG</strong> · <strong>월 예상 금액 PNG</strong> · <strong>부가설명 PNG (1) 비용·보험료</strong> · <strong>부가설명 PNG (2) 분석·다음단계</strong> · <strong>국가 지원금 안내 PNG</strong> 를 각각 뽑아 다운로드</li>
+            <li><strong>다이어그램 PNG</strong> · <strong>월 예상 금액 PNG</strong> · <strong>부가설명 PNG (1) 비용·보험료</strong> · <strong>(2) 분석결과</strong> · <strong>(3) 다음단계</strong> · <strong>국가 지원금 안내 PNG</strong> 를 각각 뽑아 다운로드</li>
             <li>워드/한글/디자인 툴에서 위 이미지 + 필요한 텍스트를 붙여 고객 전달용 리포터 제작</li>
           </ol>
           <p className="font-medium text-gray-700 mt-3 mb-1">부가 설명 문구 수정</p>

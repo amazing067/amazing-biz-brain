@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       analysisSections.push({ title: '점검해볼 부분', body: problemAreasText });
     }
 
-    const part = body.part === 1 || body.part === 2 ? body.part : undefined;
+    const part = body.part === 1 || body.part === 2 || body.part === 3 ? body.part : undefined;
     const userName = (data?.userName || '고객').toString();
     const disclaimerTitles = ['이 검사에 대해', '주의사항'];
     const baseExtra = content?.extraSections ?? [];
@@ -95,16 +95,27 @@ export async function POST(request: NextRequest) {
       if (ageContext) part2Sections.push({ title: '동일 나이대 인지 위치', body: ageContext });
       if (dementiaRiskNote) part2Sections.push({ title: '치매·인지 위험 해석', body: dementiaRiskNote });
       if (oneActionThisMonth) part2Sections.push({ title: '이번 달 한 가지 행동', body: oneActionThisMonth });
-      part2Sections.push(analysisSections[2]);
-      if (analysisSections[3]) part2Sections.push(analysisSections[3]);
       content = {
         ...content,
         stageDescriptions: content?.stageDescriptions,
         extraSections: part2Sections,
         pageTitle: '분석 결과',
-        pageSubtitle: `${userName} 님 · 다음 단계·주의사항`,
+        pageSubtitle: `${userName} 님 · 인지 위치·위험 해석`,
         showStagePill: true,
-        disclaimerText: '', // 부가설명2에는 하단 안내 문구 생략 (본문에 이미 있음)
+        disclaimerText: '',
+      };
+    } else if (part === 3) {
+      const part3Sections: Array<{ title: string; body: string }> = [];
+      part3Sections.push(analysisSections[2]);
+      if (analysisSections[3]) part3Sections.push(analysisSections[3]);
+      content = {
+        ...content,
+        stageDescriptions: content?.stageDescriptions,
+        extraSections: part3Sections,
+        pageTitle: '다음 단계',
+        pageSubtitle: `${userName} 님 · 할 일·점검 영역`,
+        showStagePill: false,
+        disclaimerText: '',
       };
     } else {
       content = {
@@ -115,7 +126,7 @@ export async function POST(request: NextRequest) {
     const png = await generateExplanationPng(data, content ?? undefined);
 
     const date = new Date().toISOString().split('T')[0];
-    const suffix = part === 1 ? '_1_비용보험료' : part === 2 ? '_2_분석다음단계' : '';
+    const suffix = part === 1 ? '_1_비용보험료' : part === 2 ? '_2_분석결과' : part === 3 ? '_3_다음단계' : '';
     const rawName = data?.userName ? `explanation_${data.userName}_${date}${suffix}.png` : `explanation_${date}${suffix}.png`;
     const name = rawName.replace(/[^\x00-\x7F]/g, '_');
 

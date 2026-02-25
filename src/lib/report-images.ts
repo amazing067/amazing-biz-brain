@@ -42,7 +42,7 @@ async function getLaunchOptions(): Promise<{ executablePath: string; args: strin
 }
 
 function getDiagramHTML(data: Record<string, unknown>): string {
-  const categoryScores = (data.categoryScores || {}) as Record<string, { percent?: number; max?: number }>;
+  const categoryScores = (data.categoryScores || {}) as Record<string, { percent?: number; max?: number; score?: number }>;
   const categories = Object.entries(categoryScores).filter(([, v]) => (v?.max ?? 0) > 0);
   const n = categories.length || 1;
   const cx = 160;
@@ -60,35 +60,74 @@ function getDiagramHTML(data: Record<string, unknown>): string {
   });
   const polygonPoints = axisPoints.map((p) => `${p.x},${p.y}`).join(' ');
 
+  const widthPx = 650;
+  const radarSize = 300;
+  const gapPx = 16;
+  const rightWidth = 260;
+  const contentWidth = radarSize + gapPx + rightWidth;
+  const barRows = categories.map(([cat]) => {
+    const v = categoryScores[cat];
+    const max = v?.max ?? 0;
+    const percent = v?.percent ?? 0;
+    const score = v?.score ?? (max > 0 ? Math.round((percent / 100) * max) : 0);
+    const isFull = percent >= 100;
+    const scoreColor = isFull ? '#1d4ed8' : '#dc2626';
+    return { cat, score, max, percent, scoreColor };
+  });
+  const barRowsHtml = barRows
+    .map(
+      (r) => `
+    <div class="diagram-bar-row">
+      <span class="diagram-bar-label">${escapeHtml(r.cat)}</span>
+      <div class="diagram-bar-track"><div class="diagram-bar-fill" style="width:${r.percent}%;background:${r.percent >= 100 ? '#2563eb' : '#ef4444'}"></div></div>
+      <span class="diagram-bar-score" style="color:${r.scoreColor}">${r.score}/${r.max} (${r.percent}%)</span>
+    </div>`
+    )
+    .join('');
+
   return `
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-    .wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    h2 { font-size: 16px; color: #374151; margin-bottom: 16px; text-align: center; }
+    html, body { width: ${widthPx}px; margin: 0; padding: 0; background: transparent; font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+    body { padding: 8px 0; overflow: hidden; display: flex; justify-content: center; }
+    .diagram-wrap { width: ${contentWidth}px; display: flex; flex-direction: row; align-items: center; gap: ${gapPx}px; flex-shrink: 0; }
+    .diagram-radar { flex-shrink: 0; }
+    .diagram-radar svg { display: block; }
+    .diagram-scores { flex: 0 0 ${rightWidth}px; min-width: 0; width: ${rightWidth}px; }
+    .diagram-section-title { font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
+    .diagram-bars { display: flex; flex-direction: column; gap: 6px; }
+    .diagram-bar-row { display: flex; align-items: center; gap: 6px; font-size: 10px; min-width: 0; }
+    .diagram-bar-label { flex: 0 0 52px; font-weight: 700; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .diagram-bar-track { flex: 1; min-width: 0; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+    .diagram-bar-fill { height: 100%; border-radius: 4px; min-width: 2px; }
+    .diagram-bar-score { flex: 0 0 62px; font-weight: 700; font-size: 9px; text-align: right; white-space: nowrap; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h2>인지 기능</h2>
-    <svg viewBox="0 0 340 340" style="width: 320px; height: 320px;">
-      ${[0.25, 0.5, 0.75, 1].map((ratio) => `<polygon points="${axisLines.map((ap) => `${cx + (ap.x - cx) * ratio},${cy + (ap.y - cy) * ratio}`).join(' ')}" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>`).join('')}
-      ${axisLines.map((ap) => `<line x1="${cx}" y1="${cy}" x2="${ap.x}" y2="${ap.y}" stroke="#cbd5e1" stroke-width="1.5"/>`).join('')}
-      <polygon points="${polygonPoints}" fill="rgba(59,130,246,0.45)" stroke="#2563eb" stroke-width="2.5"/>
-      ${axisLines.map((ap, i) => {
-        const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
-        const tx = cx + (maxR + 24) * Math.cos(angle);
-        const ty = cy + (maxR + 24) * Math.sin(angle);
-        const pct = categoryScores[ap.label]?.percent ?? 0;
-        return `<text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="middle" fill="#1e293b" style="font-family:'Noto Sans KR',sans-serif;font-size:10px;font-weight:700">${ap.label}</text><text x="${tx}" y="${ty + 14}" text-anchor="middle" dominant-baseline="middle" fill="#2563eb" style="font-family:'Noto Sans KR',sans-serif;font-size:9px;font-weight:700">${pct}%</text>`;
-      }).join('')}
-    </svg>
-    <p style="font-size: 11px; color: #64748b; text-align: center; margin-top: 12px;">각 영역별 달성률(%) · 꼭지점이 바깥으로 갈수록 양호</p>
+  <div class="diagram-wrap">
+    <div class="diagram-radar">
+      <svg viewBox="0 0 340 340" width="${radarSize}" height="${radarSize}">
+        ${[0.25, 0.5, 0.75, 1].map((ratio) => `<polygon points="${axisLines.map((ap) => `${cx + (ap.x - cx) * ratio},${cy + (ap.y - cy) * ratio}`).join(' ')}" fill="none" stroke="#94a3b8" stroke-width="2"/>`).join('')}
+        ${axisLines.map((ap) => `<line x1="${cx}" y1="${cy}" x2="${ap.x}" y2="${ap.y}" stroke="#64748b" stroke-width="2"/>`).join('')}
+        <polygon points="${polygonPoints}" fill="rgba(37,99,235,0.5)" stroke="#1d4ed8" stroke-width="3.5"/>
+        ${axisLines.map((ap, i) => {
+          const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+          const tx = cx + (maxR + 24) * Math.cos(angle);
+          const ty = cy + (maxR + 24) * Math.sin(angle);
+          const pct = categoryScores[ap.label]?.percent ?? 0;
+          return `<text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="middle" fill="#0f172a" style="font-family:'Noto Sans KR',sans-serif;font-size:11px;font-weight:800">${escapeHtml(ap.label)}</text><text x="${tx}" y="${ty + 14}" text-anchor="middle" dominant-baseline="middle" fill="#1d4ed8" style="font-family:'Noto Sans KR',sans-serif;font-size:10px;font-weight:800">${pct}%</text>`;
+        }).join('')}
+      </svg>
+    </div>
+    <div class="diagram-scores">
+      <p class="diagram-section-title">📊 영역별 상세 점수</p>
+      <div class="diagram-bars">${barRowsHtml}</div>
+    </div>
   </div>
 </body>
 </html>
@@ -131,129 +170,123 @@ function getCostAnalysisHTML(data: Record<string, unknown>): string {
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: #f1f5f9; padding: 16px; }
+    body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; background: transparent; padding: 10px; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
     .page { max-width: 520px; margin: 0 auto; }
-    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 16px; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 10px; }
     .card-2026 { border: 2px solid #dbeafe; }
     .card-2036 { border: 2px solid #fecaca; }
-    .bar-wrap { height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .bar-wrap { height: 6px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
     .bar { height: 100%; border-radius: 999px; }
     .bar-blue { background: #3b82f6; }
     .bar-red { background: linear-gradient(90deg, #ef4444, #dc2626); }
-    .badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+    .badge { font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 4px; }
     .badge-curr { background: #dbeafe; color: #1d4ed8; }
     .badge-future { background: #ffedd5; color: #c2410c; }
-    .cost-detail { border-left: 4px solid; padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; }
+    .cost-detail { border-left: 4px solid; padding: 6px 10px; border-radius: 6px; margin-bottom: 6px; }
     .cost-detail.care { border-color: #dc2626; background: #fef2f2; }
     .cost-detail.med { border-color: #3b82f6; background: #eff6ff; }
     .cost-detail.living { border-color: #16a34a; background: #f0fdf4; }
-    .calc-note { font-size: 10px; color: #64748b; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; }
   </style>
 </head>
 <body>
   <div class="page">
     <div class="card card-2026">
-      <div style="padding: 16px 18px; border-bottom: 1px solid #e5e7eb;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+      <div style="padding: 12px 14px; border-bottom: 1px solid #e5e7eb;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
           <div>
-            <h2 style="font-size: 17px; font-weight: 800; color: #1f2937;">월 예상 금액 분석</h2>
-            <p style="font-size: 13px; color: #374151; font-weight: 600; margin-top: 8px; margin-bottom: 4px;">예상 장기요양 등급: ${gradeLabel}</p>
-            <p style="font-size: 13px; color: #1d4ed8; font-weight: 700;">인지지원 월 한도: ${limitStr}</p>
+            <h2 style="font-size: 16px; font-weight: 800; color: #1f2937;">월 예상 금액 분석</h2>
+            <p style="font-size: 12px; color: #374151; font-weight: 600; margin-top: 4px; margin-bottom: 2px;">예상 장기요양 등급: ${escapeHtml(gradeLabel)}</p>
+            <p style="font-size: 12px; color: #1d4ed8; font-weight: 700;">인지지원 월 한도: ${limitStr}</p>
           </div>
           <span class="badge badge-curr">현재 기준</span>
         </div>
-        <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">📊 2026년 월 예상 비용 · 2026년 장기요양 수가 고시 반영</p>
-        <div style="margin-bottom: 14px;">
-          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+        <p style="font-size: 11px; color: #6b7280; margin-bottom: 8px;">📊 2026년 월 예상 비용 · 2026년 장기요양 수가 고시 반영</p>
+        <div style="margin-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
             <span style="font-weight: 700; color: #1d4ed8;">국가 지원금 (최대)</span>
             <span style="font-weight: 700; color: #1d4ed8;">${realGovSupport.toLocaleString()}원</span>
           </div>
           <div class="bar-wrap"><div class="bar bar-blue" style="width: 35%;"></div></div>
         </div>
-        <div style="background: #fef2f2; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px;">
+        <div style="background: #fef2f2; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px;">
           <div style="display: flex; justify-content: space-between; font-size: 11px; color: #4b5563;"><span>① 법정 본인부담금</span><span>${coPay.toLocaleString()}원</span></div>
           <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #b91c1c;"><span>② 비급여 (식대/간병비)</span><span>+${nonCoveredCost.toLocaleString()}원</span></div>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
-          <span style="font-size: 12px; font-weight: 700; color: #dc2626;">실제 본인 부담금 (월) <span style="font-size: 10px; opacity: 0.9;">※ 위 ①·② 포함</span></span>
-          <span style="font-size: 22px; font-weight: 800; color: #dc2626;">${finalSelfPay.toLocaleString()}원</span>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2px;">
+          <span style="font-size: 11px; font-weight: 700; color: #dc2626;">실제 본인 부담금 (월) <span style="font-size: 9px; opacity: 0.9;">※ 위 ①·② 포함</span></span>
+          <span style="font-size: 20px; font-weight: 800; color: #dc2626;">${finalSelfPay.toLocaleString()}원</span>
         </div>
-        <div class="bar-wrap" style="height: 10px;"><div class="bar bar-red" style="width: 100%;"></div></div>
+        <div class="bar-wrap" style="height: 8px;"><div class="bar bar-red" style="width: 100%;"></div></div>
       </div>
     </div>
 
     <div class="card card-2036">
-      <div style="background: #dc2626; color: #fff; font-size: 11px; font-weight: 700; text-align: center; padding: 10px 16px;">
+      <div style="background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; text-align: center; padding: 6px 12px;">
         🚨 10년 후 (2036년) 예상 비용 | 물가상승률 반영
       </div>
-      <div style="padding: 16px 18px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <h3 style="font-size: 15px; font-weight: 800; color: #1f2937;">📉 10년 후 월 예상 간병비</h3>
+      <div style="padding: 12px 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <h3 style="font-size: 14px; font-weight: 800; color: #1f2937;">📉 10년 후 월 예상 간병비</h3>
           <span class="badge badge-future">미래 예상</span>
         </div>
-        <p style="font-size: 10px; color: #6b7280; margin-bottom: 14px;">"${careType}" 이용 시 예상 월 지출액</p>
-        <div style="margin-bottom: 14px;">
-          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+        <p style="font-size: 10px; color: #6b7280; margin-bottom: 8px;">"${escapeHtml(careType)}" 이용 시 예상 월 지출액</p>
+        <div style="margin-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
             <span style="font-weight: 700; color: #1d4ed8;">국가 지원금 (예상)</span>
             <span style="font-weight: 700; color: #1d4ed8;">${futureGovSupport.toLocaleString()}원</span>
           </div>
-          <div class="bar-wrap" style="height: 10px;"><div class="bar bar-blue" style="width: ${govSupportPct}%;"></div></div>
+          <div class="bar-wrap" style="height: 8px;"><div class="bar bar-blue" style="width: ${govSupportPct}%;"></div></div>
         </div>
-        <div style="margin-bottom: 4px;">
+        <div style="margin-bottom: 2px;">
           <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-            <span style="font-size: 12px; font-weight: 700; color: #dc2626;">실제 본인 부담금</span>
-            <span style="font-size: 24px; font-weight: 800; color: #dc2626;">${futureSelfPay >= 10000 ? `${Math.round(futureSelfPay / 10000)}만원` : `${futureSelfPay.toLocaleString()}원`}</span>
+            <span style="font-size: 11px; font-weight: 700; color: #dc2626;">실제 본인 부담금</span>
+            <span style="font-size: 20px; font-weight: 800; color: #dc2626;">${futureSelfPay >= 10000 ? `${Math.round(futureSelfPay / 10000)}만원` : `${futureSelfPay.toLocaleString()}원`}</span>
           </div>
-          <p style="font-size: 10px; color: #6b7280; text-align: right;">${futureSelfPay.toLocaleString()}원</p>
+          <p style="font-size: 9px; color: #6b7280; text-align: right;">${futureSelfPay.toLocaleString()}원</p>
         </div>
-        <div class="bar-wrap" style="height: 12px; margin-bottom: 16px;"><div class="bar bar-red" style="width: 100%;"></div></div>
+        <div class="bar-wrap" style="height: 8px; margin-bottom: 10px;"><div class="bar bar-red" style="width: 100%;"></div></div>
 
-        <div style="background: linear-gradient(to bottom, #f8fafc, #f1f5f9); padding: 14px; border-radius: 12px; border: 2px solid #cbd5e1;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #94a3b8;">
-            <span style="font-size: 13px; font-weight: 700; color: #374151;">🧾 비용 산출 상세 내역 (월 기준)</span>
-            <span style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-weight: 700;">물가상승 1.5배 · 연 4%×10년</span>
+        <div style="background: linear-gradient(to bottom, #f8fafc, #f1f5f9); padding: 10px; border-radius: 10px; border: 2px solid #cbd5e1;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #94a3b8;">
+            <span style="font-size: 12px; font-weight: 700; color: #374151;">🧾 비용 산출 상세 내역 (월 기준)</span>
+            <span style="font-size: 9px; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-weight: 700;">물가상승 1.5배 · 연 4%×10년</span>
           </div>
           <div class="cost-detail care">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: 700; color: #b91c1c;">① 사적 간병비 (인건비) <span style="font-size: 9px; background: #fecaca; padding: 1px 4px; border-radius: 2px;">최대 부담</span></span>
-              <span style="font-size: 16px; font-weight: 800; color: #dc2626;">${caregiverAmount.toLocaleString()}원</span>
+              <span style="font-weight: 700; color: #b91c1c; font-size: 11px;">① 사적 간병비 (인건비) <span style="font-size: 9px; background: #fecaca; padding: 1px 4px; border-radius: 2px;">최대 부담</span></span>
+              <span style="font-size: 14px; font-weight: 800; color: #dc2626;">${caregiverAmount.toLocaleString()}원</span>
             </div>
-            <p style="font-size: 10px; font-weight: 700; color: #b91c1c; margin-top: 6px; background: #fee2e2; padding: 4px 8px; border-radius: 4px;">
+            <p style="font-size: 9px; font-weight: 700; color: #b91c1c; margin-top: 4px; background: #fee2e2; padding: 3px 6px; border-radius: 4px; line-height: 1.4;">
               ${caregiverAmount === 0
-                ? '▲ 주야간보호·재가 이용 시 별도 간병인 고용비가 없을 수 있어 0원으로 표기됩니다. 필요 시 치매·간병 보험으로 준비하세요.'
+                ? '▲ 주야간보호·재가 이용 시 별도 간병인 고용비가 없을 수 있어 0원으로 표기됩니다.<br/>필요 시 치매·간병 보험으로 준비하세요.'
                 : '▲ 정부 지원 없음 (100% 본인 부담) | 실손보험 비적용'}
             </p>
           </div>
           <div class="cost-detail med">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
               <span style="font-weight: 600; color: #374151;">② 병원비/시설비</span>
               <span style="font-weight: 700;">${(details.medical || 0).toLocaleString()}원</span>
             </div>
           </div>
           <div class="cost-detail living">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
               <span style="font-weight: 600; color: #374151;">③ 식대/소모품 (기저귀 등)</span>
               <span style="font-weight: 700;">${(details.living || 0).toLocaleString()}원</span>
             </div>
           </div>
-          <div style="background: #e2e8f0; padding: 12px; border-radius: 8px; margin-top: 12px; border: 2px solid #94a3b8;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #94a3b8;">
-              <span style="font-weight: 700;">총 비용 합계 (2036년 예상)</span>
-              <span style="font-size: 15px; font-weight: 800;">${futureTotalCost.toLocaleString()}원</span>
+          <div style="background: #e2e8f0; padding: 10px; border-radius: 6px; margin-top: 8px; border: 2px solid #94a3b8;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #94a3b8;">
+              <span style="font-weight: 700; font-size: 11px;">총 비용 합계 (2036년 예상)</span>
+              <span style="font-size: 14px; font-weight: 800;">${futureTotalCost.toLocaleString()}원</span>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
               <span style="font-weight: 600; color: #1d4ed8;">- 국가 지원금 (예상)</span>
               <span style="font-weight: 700; color: #1d4ed8;">${futureGovSupport.toLocaleString()}원</span>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; margin: 0 -12px -12px -12px; padding: 10px 12px 12px; background: #fef2f2; border-radius: 0 0 6px 6px; border: 2px solid #fecaca; border-top: none;">
-              <span style="font-weight: 700; color: #b91c1c;">= 실제 본인 부담금</span>
-              <span style="font-size: 18px; font-weight: 800; color: #dc2626;">${futureSelfPay.toLocaleString()}원</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; margin: 0 -10px -10px -10px; padding: 8px 10px 10px; background: #fef2f2; border-radius: 0 0 6px 6px; border: 2px solid #fecaca; border-top: none;">
+              <span style="font-weight: 700; color: #b91c1c; font-size: 11px;">= 실제 본인 부담금</span>
+              <span style="font-size: 16px; font-weight: 800; color: #dc2626;">${futureSelfPay.toLocaleString()}원</span>
             </div>
-          </div>
-          <div class="calc-note">
-            <p style="text-align: right; font-weight: 600;">* 계산 근거:</p>
-            <p style="text-align: right;">2026년 기준 비용 × 물가상승률 1.5배</p>
-            <p style="text-align: right; color: #94a3b8;">(연 평균 4% 상승 × 10년 = 1.04¹⁰ ≈ 1.48배)</p>
           </div>
         </div>
       </div>
@@ -291,8 +324,8 @@ async function htmlToPng(html: string, viewport = { width: 400, height: 420 }): 
   }
 }
 
-/** 콘텐츠 높이에 딱 맞춰 스크린샷 (하단 빈 여백 없음). .page 기준으로 측정 */
-async function htmlToPngContentHeight(html: string, width: number): Promise<Buffer> {
+/** 콘텐츠 높이에 딱 맞춰 스크린샷 (하단 빈 여백 없음). .page 기준으로 측정. omitBackground true 시 투명 배경 PNG */
+async function htmlToPngContentHeight(html: string, width: number, omitBackground = false): Promise<Buffer> {
   const launchOpts = await getLaunchOptions();
   const browser = launchOpts
     ? await puppeteerCore.launch({
@@ -307,7 +340,8 @@ async function htmlToPngContentHeight(html: string, width: number): Promise<Buff
   try {
     const page = await browser.newPage();
     page.setDefaultTimeout(60000);
-    await page.setViewport({ width, height: 2400, deviceScaleFactor: 2 });
+    const deviceScaleFactor = 3;
+    await page.setViewport({ width, height: 2400, deviceScaleFactor });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
     await new Promise((r) => setTimeout(r, 500));
     const contentHeight = await (page.evaluate as (fn: () => number) => Promise<number>)(() => {
@@ -315,9 +349,9 @@ async function htmlToPngContentHeight(html: string, width: number): Promise<Buff
       const h = pageEl ? pageEl.scrollHeight : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
       return Math.min(Math.max(Math.ceil(h) + 4, 500), 5000);
     });
-    await page.setViewport({ width, height: contentHeight, deviceScaleFactor: 2 });
+    await page.setViewport({ width, height: contentHeight, deviceScaleFactor });
     await new Promise((r) => setTimeout(r, 100));
-    const buf = await page.screenshot({ type: 'png' });
+    const buf = await page.screenshot({ type: 'png', ...(omitBackground ? { omitBackground: true } : {}) });
     const buffer = Buffer.from(buf);
     if (!buffer || buffer.length === 0) throw new Error('스크린샷이 비어 있습니다.');
     return buffer;
@@ -326,14 +360,45 @@ async function htmlToPngContentHeight(html: string, width: number): Promise<Buff
   }
 }
 
+/** 다이어그램(레이더+영역별 상세 점수) 650px 너비, 배경 없음, 고화질 */
 export async function generateDiagramPng(data: Record<string, unknown>): Promise<Buffer> {
   const html = getDiagramHTML(data);
-  return htmlToPng(html, { width: 400, height: 420 });
+  const widthPx = 650;
+  const scale = 3;
+  const rowCount = Object.entries((data.categoryScores || {}) as Record<string, unknown>).filter(([, v]) => ((v as { max?: number })?.max ?? 0) > 0).length || 1;
+  const estimatedHeight = 16 + Math.max(300, 24 + rowCount * 20);
+  const launchOpts = await getLaunchOptions();
+  const browser = launchOpts
+    ? await puppeteerCore.launch({
+        headless: true,
+        executablePath: launchOpts.executablePath,
+        args: launchOpts.args,
+      })
+    : await puppeteer.launch({
+        headless: true,
+        args: DEFAULT_ARGS,
+      });
+  try {
+    const page = await browser.newPage();
+    page.setDefaultTimeout(60000);
+    await page.setViewport({ width: widthPx, height: Math.min(estimatedHeight, 400), deviceScaleFactor: scale });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+    await new Promise((r) => setTimeout(r, 400));
+    const buf = await page.screenshot({
+      type: 'png',
+      omitBackground: true,
+    });
+    const buffer = Buffer.from(buf);
+    if (!buffer || buffer.length === 0) throw new Error('다이어그램 스크린샷이 비어 있습니다.');
+    return buffer;
+  } finally {
+    await browser.close();
+  }
 }
 
 export async function generateCostAnalysisPng(data: Record<string, unknown>): Promise<Buffer> {
   const html = getCostAnalysisHTML(data);
-  return htmlToPngContentHeight(html, 560);
+  return htmlToPngContentHeight(html, 560, true);
 }
 
 /** 장기요양 국가 지원금 이용·지급 안내 (공식 자료 기준, 데이터 불필요) */
@@ -542,7 +607,11 @@ function buildAnalysisResultMain(
     <div class="analysis-metric"><span class="analysis-metric-label">점검</span><span class="analysis-metric-value">${problemCount}개 영역</span></div>
   </div>`;
 
-  let blocks = summaryStrip + keyMetrics;
+  const hasSummarySections = sections.some((s) => {
+    const t = String(s?.title ?? '');
+    return t.includes('동일 나이대') || t.includes('치매·인지 위험') || t.includes('이번 달 한 가지');
+  });
+  let blocks = hasSummarySections ? summaryStrip + keyMetrics : '';
 
   const currentAge = data.age != null ? Number(data.age) : null;
   const ageLabel = currentAge != null ? `현재 ${currentAge}세 · 동일 나이대 인지 위치` : '동일 나이대 인지 위치';
@@ -714,7 +783,7 @@ function getExplanationHTML(data: Record<string, unknown>, content: ReportConten
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -725,166 +794,169 @@ function getExplanationHTML(data: Record<string, unknown>, content: ReportConten
       font-size: 15px;
       padding: 0;
       margin: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
     }
     .page {
       width: 560px;
-      background: #fafbfc;
-      padding-bottom: 12px;
+      background: #fff;
+      padding-bottom: 16px;
     }
     .top-bar {
-      height: 6px;
-      background: linear-gradient(90deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+      height: 10px;
+      background: linear-gradient(90deg, #1e3a8a 0%, #1d4ed8 40%, #2563eb 70%, #3b82f6 100%);
     }
     .title-row {
-      padding: 18px 24px 14px;
+      padding: 20px 24px 16px;
       background: #fff;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 2px solid #cbd5e1;
     }
-    .title-row h1 { font-size: 21px; font-weight: 800; color: #1e293b; }
-    .title-row .by { font-size: 14px; color: #475569; margin-top: 2px; }
+    .title-row h1 { font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
+    .title-row .by { font-size: 15px; color: #334155; margin-top: 4px; font-weight: 600; }
     .stage-pill {
       display: inline-block;
-      margin: 14px 24px 0;
-      padding: 8px 14px;
+      margin: 16px 24px 0;
+      padding: 10px 18px;
       background: #eff6ff;
       color: #1d4ed8;
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 14px;
+      font-weight: 700;
       border-radius: 20px;
-      border: 1px solid #bfdbfe;
+      border: 2px solid #93c5fd;
     }
-    .main { padding: 14px 24px 0; }
+    .main { padding: 16px 24px 0; }
     .card {
       background: #fff;
-      border-radius: 10px;
-      padding: 14px 18px;
-      margin-bottom: 12px;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      border: 2px solid #cbd5e1;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
     .card:last-child { margin-bottom: 0; }
-    .card-cost { border-left: 4px solid #2563eb; }
+    .card-cost { border-left: 5px solid #1d4ed8; }
     .card-title {
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 800;
-      color: #1e293b;
-      margin-bottom: 10px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #f1f5f9;
+      color: #0f172a;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e2e8f0;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
-    .card-icon { width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; }
-    .card-icon.cost { background: #2563eb; width: 4px; height: 12px; border-radius: 2px; }
-    .card-icon.premium { background: #059669; }
-    .card-icon.next { background: #7c3aed; }
-    .card-icon.problem { background: #dc2626; }
-    .card-body { font-size: 14px; color: #334155; line-height: 1.65; }
+    .card-icon { width: 8px; height: 8px; border-radius: 50%; background: #64748b; }
+    .card-icon.cost { background: #1d4ed8; width: 5px; height: 14px; border-radius: 2px; }
+    .card-icon.premium { background: #047857; }
+    .card-icon.next { background: #6d28d9; }
+    .card-icon.problem { background: #b91c1c; }
+    .card-body { font-size: 14px; color: #1e293b; line-height: 1.65; font-weight: 500; }
     .card-body .pre-wrap { white-space: pre-line; word-break: keep-all; }
-    .card-cost .card-body { font-size: 13px; color: #475569; line-height: 1.6; }
-    .card-premium .card-body { font-size: 16px; color: #1e293b; line-height: 1.65; }
-    .num-list { margin-left: 16px; padding-left: 4px; }
-    .num-list li { margin-bottom: 6px; }
+    .card-cost .card-body { font-size: 14px; color: #334155; line-height: 1.6; font-weight: 600; }
+    .card-premium .card-body { font-size: 16px; color: #0f172a; line-height: 1.65; font-weight: 600; }
+    .num-list { margin-left: 18px; padding-left: 4px; }
+    .num-list li { margin-bottom: 8px; font-weight: 600; }
     .num-list li:last-child { margin-bottom: 0; }
-    .problem-line { margin-bottom: 6px; }
+    .problem-line { margin-bottom: 8px; font-weight: 600; }
     .problem-line:last-child { margin-bottom: 0; }
-    .explanation-blocks { font-size: 13px; color: #475569; }
-    .explanation-blocks-short { font-size: 15px; color: #334155; line-height: 1.6; }
-    .explanation-block { margin-bottom: 14px; }
+    .explanation-blocks { font-size: 14px; color: #334155; font-weight: 600; }
+    .explanation-blocks-short { font-size: 16px; color: #1e293b; line-height: 1.65; font-weight: 600; }
+    .explanation-block { margin-bottom: 16px; }
     .explanation-block:last-child { margin-bottom: 0; }
-    .explanation-block h4 { font-size: 14px; font-weight: 800; color: #1e293b; margin-bottom: 6px; }
-    .explanation-blocks-short .explanation-block h4 { font-size: 15px; margin-bottom: 8px; }
-    .explanation-ul { margin-left: 16px; padding-left: 4px; list-style: none; }
-    .explanation-ul li { margin-bottom: 5px; position: relative; padding-left: 10px; }
-    .explanation-ul li::before { content: '·'; position: absolute; left: 0; font-weight: 700; color: #64748b; }
-    .explanation-ul-short li { margin-bottom: 8px; font-size: 14px; }
-    .key-badges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; align-items: stretch; }
-    .badge-box { border-radius: 8px; padding: 8px 10px; text-align: center; border: 1px solid transparent; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
-    .badge-box .badge-label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 2px; line-height: 1.25; }
-    .badge-box .badge-value { display: block; font-size: 15px; font-weight: 800; line-height: 1.3; }
-    .badge-box-1 { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+    .explanation-block h4 { font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+    .explanation-blocks-short .explanation-block h4 { font-size: 16px; margin-bottom: 10px; font-weight: 800; }
+    .explanation-ul { margin-left: 18px; padding-left: 4px; list-style: none; }
+    .explanation-ul li { margin-bottom: 6px; position: relative; padding-left: 12px; font-weight: 600; }
+    .explanation-ul li::before { content: '·'; position: absolute; left: 0; font-weight: 800; color: #475569; }
+    .explanation-ul-short li { margin-bottom: 10px; font-size: 15px; font-weight: 600; }
+    .key-badges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; align-items: stretch; }
+    .badge-box { border-radius: 10px; padding: 10px 12px; text-align: center; border: 2px solid; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+    .badge-box .badge-label { display: block; font-size: 12px; font-weight: 800; margin-bottom: 4px; line-height: 1.25; }
+    .badge-box .badge-value { display: block; font-size: 16px; font-weight: 800; line-height: 1.3; }
+    .badge-box-1 { background: #fef3c7; border-color: #d97706; color: #92400e; }
     .badge-box-1 .badge-label { color: #b45309; }
-    .badge-box-1 .badge-value { color: #1e293b; }
-    .badge-box-2 { background: #d1fae5; border-color: #10b981; color: #065f46; }
+    .badge-box-1 .badge-value { color: #0f172a; }
+    .badge-box-2 { background: #d1fae5; border-color: #059669; color: #065f46; }
     .badge-box-2 .badge-label { color: #047857; }
-    .badge-box-2 .badge-value { color: #1e293b; }
-    .badge-box-3 { background: #ffe4e6; border-color: #f43f5e; color: #9f1239; }
+    .badge-box-2 .badge-value { color: #0f172a; }
+    .badge-box-3 { background: #ffe4e6; border-color: #e11d48; color: #9f1239; }
     .badge-box-3 .badge-label { color: #be123c; }
-    .badge-box-3 .badge-value { color: #1e293b; }
-    .badge-box-primary { background: #eff6ff; border-color: #3b82f6; }
+    .badge-box-3 .badge-value { color: #0f172a; }
+    .badge-box-primary { background: #eff6ff; border-color: #2563eb; }
     .badge-box-primary .badge-label { color: #1d4ed8; }
-    .badge-box-primary .badge-value { color: #1e40af; font-size: 14px; }
+    .badge-box-primary .badge-value { color: #1e40af; font-size: 15px; font-weight: 800; }
     .age-premium-note { margin: -4px 0 14px 0; padding: 0 2px; }
-    .age-premium-line { font-size: 12px; color: #64748b; font-weight: 600; margin: 0 0 4px 0; }
-    .age-premium-reason { font-size: 11px; color: #64748b; line-height: 1.45; margin: 0; }
-    .two-lines-block { margin-top: 4px; }
-    .two-lines-block .line { font-size: 15px; line-height: 1.75; color: #334155; margin-bottom: 6px; }
+    .age-premium-line { font-size: 13px; color: #475569; font-weight: 700; margin: 0 0 4px 0; }
+    .age-premium-reason { font-size: 12px; color: #64748b; line-height: 1.45; margin: 0; font-weight: 500; }
+    .two-lines-block { margin-top: 6px; }
+    .two-lines-block .line { font-size: 16px; line-height: 1.75; color: #1e293b; margin-bottom: 8px; font-weight: 600; }
     .two-lines-block .line:last-child { margin-bottom: 0; }
-    .highlight { color: #dc2626; font-weight: 800; }
+    .highlight { color: #b91c1c; font-weight: 800; }
     .notice {
       margin: 16px 24px 0;
-      padding: 10px 16px;
+      padding: 12px 18px;
       background: #fef2f2;
-      border: 1px solid #fecaca;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 600;
+      border: 2px solid #fecaca;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
       color: #b91c1c;
       text-align: center;
-      line-height: 1.4;
+      line-height: 1.45;
     }
     .analysis-summary-strip {
-      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
-      padding: 12px 16px; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 12px;
+      padding: 14px 18px; margin-bottom: 14px;
     }
-    .analysis-stage-badge { font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 8px; border: 1px solid; }
-    .analysis-total { font-size: 30px; font-weight: 800; color: #1e293b; line-height: 1; }
-    .analysis-total-unit { font-size: 15px; font-weight: 600; color: #64748b; margin-left: 2px; }
-    .analysis-summary-line { font-size: 14px; color: #334155; margin: 0; flex: 1; min-width: 120px; white-space: normal; word-break: keep-all; overflow-wrap: break-word; font-weight: 500; }
-    .analysis-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; align-items: stretch; }
+    .analysis-stage-badge { font-size: 14px; font-weight: 800; padding: 8px 14px; border-radius: 10px; border: 2px solid; }
+    .analysis-total { font-size: 32px; font-weight: 800; color: #0f172a; line-height: 1; }
+    .analysis-total-unit { font-size: 16px; font-weight: 700; color: #475569; margin-left: 2px; }
+    .analysis-summary-line { font-size: 15px; color: #1e293b; margin: 0; flex: 1; min-width: 120px; white-space: normal; word-break: keep-all; overflow-wrap: break-word; font-weight: 600; }
+    .analysis-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; align-items: stretch; }
     .analysis-two-col .analysis-card { height: 100%; display: flex; flex-direction: column; }
     .analysis-two-col .analysis-card .analysis-card-line { flex: 1; }
     .analysis-key-metrics {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;
     }
     .analysis-metric {
-      background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; text-align: center;
+      background: #fff; border: 2px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; text-align: center;
     }
-    .analysis-metric-label { display: block; font-size: 12px; color: #475569; font-weight: 700; margin-bottom: 2px; }
-    .analysis-metric-value { font-size: 14px; font-weight: 800; color: #1e293b; line-height: 1.3; }
-    .analysis-metric-hint { display: block; font-size: 10px; color: #94a3b8; font-weight: 500; margin-top: 1px; }
+    .analysis-metric-label { display: block; font-size: 12px; color: #475569; font-weight: 800; margin-bottom: 4px; }
+    .analysis-metric-value { font-size: 15px; font-weight: 800; color: #0f172a; line-height: 1.3; }
+    .analysis-metric-hint { display: block; font-size: 10px; color: #64748b; font-weight: 600; margin-top: 2px; }
     .analysis-card {
-      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; margin-bottom: 10px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      background: #fff; border: 2px solid #cbd5e1; border-radius: 12px; padding: 14px 18px; margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       overflow: visible;
     }
     .analysis-card:last-child { margin-bottom: 0; }
-    .analysis-card-title { font-size: 15px; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
-    .analysis-card-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .analysis-card-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 10px; }
+    .analysis-card-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
     .analysis-card-header-row .analysis-card-title { margin-bottom: 0; }
     .analysis-risk-top-right { flex-shrink: 0; display: flex; align-items: center; }
-    .analysis-card-line { font-size: 14px; color: #334155; line-height: 1.55; margin: 0; white-space: normal; word-break: keep-all; overflow-wrap: break-word; font-weight: 500; }
-    .analysis-gauge-wrap { margin-bottom: 8px; }
-    .analysis-gauge-track { height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; display: flex; }
-    .analysis-gauge-fill { background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 5px; min-width: 4px; }
-    .analysis-gauge-label { font-size: 13px; font-weight: 800; color: #1d4ed8; margin-top: 4px; }
-    .analysis-risk-badge { display: inline-block; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 4px; border: 1px solid; }
-    .analysis-cta { border-left: 4px solid #7c3aed; background: #f5f3ff; }
-    .analysis-cta-text { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0; white-space: normal; word-break: keep-all; overflow-wrap: break-word; }
-    .analysis-steps { display: flex; flex-direction: column; gap: 6px; }
-    .analysis-step { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #334155; font-weight: 500; }
-    .analysis-step-num { flex-shrink: 0; width: 22px; height: 22px; background: #7c3aed; color: #fff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; }
-    .analysis-step-text { line-height: 1.45; white-space: normal; word-break: keep-all; overflow-wrap: break-word; }
-    .analysis-mini-chart { display: flex; flex-direction: column; gap: 12px; }
-    .analysis-bar-block { display: flex; flex-direction: column; gap: 4px; }
-    .analysis-bar-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-    .analysis-bar-label { flex: 0 0 80px; color: #334155; font-weight: 700; }
-    .analysis-bar-track { flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
-    .analysis-bar-fill { height: 100%; background: #f97316; border-radius: 4px; }
-    .analysis-bar-pct { flex: 0 0 28px; font-weight: 800; color: #ea580c; text-align: right; }
-    .analysis-bar-tip { font-size: 12px; color: #475569; line-height: 1.45; margin: 0; padding-left: 0; word-break: keep-all; overflow-wrap: break-word; font-weight: 500; }
+    .analysis-card-line { font-size: 14px; color: #1e293b; line-height: 1.6; margin: 0; white-space: normal; word-break: keep-all; overflow-wrap: break-word; font-weight: 600; }
+    .analysis-gauge-wrap { margin-bottom: 10px; }
+    .analysis-gauge-track { height: 12px; background: #cbd5e1; border-radius: 6px; overflow: hidden; display: flex; }
+    .analysis-gauge-fill { background: linear-gradient(90deg, #1d4ed8, #3b82f6); border-radius: 6px; min-width: 6px; }
+    .analysis-gauge-label { font-size: 14px; font-weight: 800; color: #1d4ed8; margin-top: 6px; }
+    .analysis-risk-badge { display: inline-block; font-size: 13px; font-weight: 800; padding: 6px 10px; border-radius: 6px; border: 2px solid; }
+    .analysis-cta { border-left: 5px solid #6d28d9; background: #f5f3ff; }
+    .analysis-cta-text { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; white-space: normal; word-break: keep-all; overflow-wrap: break-word; }
+    .analysis-steps { display: flex; flex-direction: column; gap: 8px; }
+    .analysis-step { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: #1e293b; font-weight: 600; }
+    .analysis-step-num { flex-shrink: 0; width: 26px; height: 26px; background: #6d28d9; color: #fff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; border: 2px solid #5b21b6; }
+    .analysis-step-text { line-height: 1.5; white-space: normal; word-break: keep-all; overflow-wrap: break-word; }
+    .analysis-mini-chart { display: flex; flex-direction: column; gap: 14px; }
+    .analysis-bar-block { display: flex; flex-direction: column; gap: 6px; }
+    .analysis-bar-row { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+    .analysis-bar-label { flex: 0 0 84px; color: #1e293b; font-weight: 800; }
+    .analysis-bar-track { flex: 1; height: 10px; background: #cbd5e1; border-radius: 5px; overflow: hidden; }
+    .analysis-bar-fill { height: 100%; background: linear-gradient(90deg, #ea580c, #f97316); border-radius: 5px; }
+    .analysis-bar-pct { flex: 0 0 32px; font-weight: 800; color: #c2410c; text-align: right; font-size: 14px; }
+    .analysis-bar-tip { font-size: 12px; color: #475569; line-height: 1.5; margin: 0; padding-left: 0; word-break: keep-all; overflow-wrap: break-word; font-weight: 600; }
   </style>
 </head>
 <body>

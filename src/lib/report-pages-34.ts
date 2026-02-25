@@ -7,9 +7,9 @@ import puppeteer from 'puppeteer';
 
 export function generatePages34HTML(data: Record<string, unknown>): string {
   const total = (data.total as number) ?? 0;
-  const userName = (data.userName || '고객').toString().replace(/</g, '&lt;');
+  const userName = (data.userName || '고객').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const status = (data.status || '양호') as string;
-  const gradeLabel = ((data.grade as string) || '').split('(')[0].trim();
+  const gradeLabel = ((data.grade as string) || '').split('(')[0].trim().replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
   const stageLabel = total >= 80 ? '좋음' : total >= 60 ? '보통' : total >= 40 ? '양호' : total >= 20 ? '주의' : '위험';
   const stageHighlight = total >= 80 ? 'green' : total >= 60 ? 'blue' : total >= 40 ? 'yellow' : total >= 20 ? 'orange' : 'red';
@@ -143,21 +143,21 @@ export function generatePages34HTML(data: Record<string, unknown>): string {
         <div class="block caution">🚨 위험 (20~0점)<br/><span style="font-size: 11px;">고위험군·정밀 검사 권장</span></div>
       </div>
       <p style="font-size: 13px; font-weight: 700; color: #374151; margin: 16px 0 8px 0;">인지 기능</p>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center;">
-        <svg viewBox="0 0 340 340" style="width: 100%; max-width: 300px; height: auto;">
-          ${[0.25, 0.5, 0.75, 1].map((ratio) => `<polygon points="${axisLines.map((ap) => `${cx + (ap.x - cx) * ratio},${cy + (ap.y - cy) * ratio}`).join(' ')}" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>`).join('')}
-          ${axisLines.map((ap) => `<line x1="${cx}" y1="${cy}" x2="${ap.x}" y2="${ap.y}" stroke="#cbd5e1" stroke-width="1.5"/>`).join('')}
-          <polygon points="${polygonPoints}" fill="rgba(59,130,246,0.45)" stroke="#2563eb" stroke-width="2.5"/>
+      <div style="margin-bottom: 4px; display: flex; justify-content: center; align-items: center;">
+        <svg viewBox="0 0 340 365" preserveAspectRatio="xMidYMid meet" style="width: 100%; max-width: 300px; height: auto; overflow: visible;">
+          ${[0.25, 0.5, 0.75, 1].map((ratio) => `<polygon points="${axisLines.map((ap) => `${cx + (ap.x - cx) * ratio},${cy + (ap.y - cy) * ratio}`).join(' ')}" fill="none" stroke="#94a3b8" stroke-width="2"/>`).join('')}
+          ${axisLines.map((ap) => `<line x1="${cx}" y1="${cy}" x2="${ap.x}" y2="${ap.y}" stroke="#64748b" stroke-width="2"/>`).join('')}
+          <polygon points="${polygonPoints}" fill="rgba(37,99,235,0.5)" stroke="#1d4ed8" stroke-width="3.5"/>
           ${axisLines.map((ap, i) => {
             const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
             const tx = cx + (maxR + 24) * Math.cos(angle);
             const ty = cy + (maxR + 24) * Math.sin(angle);
             const pct = categoryScores[ap.label]?.percent ?? 0;
-            return `<text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="middle" fill="#1e293b" style="font-size:10px;font-weight:700">${ap.label}</text><text x="${tx}" y="${ty + 14}" text-anchor="middle" dominant-baseline="middle" fill="#2563eb" style="font-size:9px;font-weight:700">${pct}%</text>`;
+            return `<text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="middle" fill="#0f172a" style="font-size:11px;font-weight:800">${ap.label}</text><text x="${tx}" y="${ty + 14}" text-anchor="middle" dominant-baseline="middle" fill="#1d4ed8" style="font-size:10px;font-weight:800">${pct}%</text>`;
           }).join('')}
         </svg>
       </div>
-      <p style="font-size: 11px; color: #64748b; text-align: center; margin-bottom: 12px;">각 영역별 달성률(%) · 꼭지점이 바깥으로 갈수록 양호</p>
+      <p style="font-size: 11px; color: #64748b; text-align: center; margin-top: 4px; margin-bottom: 12px; padding-bottom: 4px;">각 영역별 달성률(%) · 꼭지점이 바깥으로 갈수록 양호</p>
       <div class="yellow-msg">
         <p style="font-size: 14px; font-weight: 700; color: #713f12; line-height: 1.6;">${recommendMsg}</p>
       </div>
