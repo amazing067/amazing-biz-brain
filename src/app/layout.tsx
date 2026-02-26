@@ -12,7 +12,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = "https://치매검사.com";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "치매 검사 | 뇌 건강 검진 | 간병비 계산 - 치매검사.com",
   icons: { icon: '/favicon.ico' },
   description: "무료 온라인 치매 검사 및 뇌 건강 검진. 15가지 인지 기능 평가로 치매 조기 발견. 10년 후 간병비 예측까지 한 번에 확인하세요. 전문 보험설계사 무료 상담 제공.",
@@ -24,11 +27,13 @@ export const metadata: Metadata = {
     siteName: "치매검사.com",
     locale: "ko_KR",
     type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "치매검사 - 쉽고 빠른 온라인 치매 위험도 확인" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "치매 검사 | 뇌 건강 검진 | 간병비 계산",
     description: "무료 온라인 치매 검사 및 뇌 건강 검진. 15가지 인지 기능 평가로 치매 조기 발견.",
+    images: ["/og-image.png"],
   },
   alternates: {
     canonical: "https://치매검사.com",

@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
         pageSubtitle: `${userName} 님 · 인지 위치·위험 해석`,
         showStagePill: true,
         disclaimerText: '',
+        problemAreaCount: problemAreasEnriched.length,
       };
     } else if (part === 3) {
       const part3Sections: Array<{ title: string; body: string }> = [];

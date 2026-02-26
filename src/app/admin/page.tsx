@@ -205,7 +205,7 @@ export default function AdminReportPage() {
       'explanation_1.png',
       'png',
       { part: 1, ...(analysisResult ? { analysisResult } : {}) },
-      (d) => `${name(d)}_부가설명_1.png`
+      (d) => `${name(d)}_비용·보험료.png`
     );
   const handleExplanationPng2 = () =>
     runGenerate(
@@ -213,7 +213,7 @@ export default function AdminReportPage() {
       'explanation_2.png',
       'png',
       { part: 2, ...(analysisResult ? { analysisResult } : {}) },
-      (d) => `${name(d)}_부가설명_2_분석결과.png`
+      (d) => `${name(d)}_분석결과.png`
     );
   const handleExplanationPng3 = () =>
     runGenerate(
@@ -221,7 +221,7 @@ export default function AdminReportPage() {
       'explanation_3.png',
       'png',
       { part: 3, ...(analysisResult ? { analysisResult } : {}) },
-      (d) => `${name(d)}_부가설명_3_다음단계.png`
+      (d) => `${name(d)}_다음단계.png`
     );
 
   const handleClosingPng = () =>
@@ -293,6 +293,32 @@ export default function AdminReportPage() {
       triggerDownload(await res.blob(), `${userName}_다이어그램.png`);
       await delay(400);
 
+      setMessage('분석결과 생성 중…');
+      res = await fetch('/api/generate-report-explanation-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, part: 2, ...(analysisResultForDownload ? { analysisResult: analysisResultForDownload } : {}) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || '분석결과 생성 실패');
+      }
+      triggerDownload(await res.blob(), `${userName}_분석결과.png`);
+      await delay(400);
+
+      setMessage('다음단계 생성 중…');
+      res = await fetch('/api/generate-report-explanation-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, part: 3, ...(analysisResultForDownload ? { analysisResult: analysisResultForDownload } : {}) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || '다음단계 생성 실패');
+      }
+      triggerDownload(await res.blob(), `${userName}_다음단계.png`);
+      await delay(400);
+
       setMessage('월 예상 금액 생성 중…');
       res = await fetch('/api/generate-report-cost-image', {
         method: 'POST',
@@ -306,7 +332,7 @@ export default function AdminReportPage() {
       triggerDownload(await res.blob(), `${userName}_월예상금액.png`);
       await delay(400);
 
-      setMessage('부가설명 1 생성 중…');
+      setMessage('비용·보험료 생성 중…');
       res = await fetch('/api/generate-report-explanation-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -314,35 +340,9 @@ export default function AdminReportPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || '부가설명 1 생성 실패');
+        throw new Error((err as { error?: string }).error || '비용·보험료 생성 실패');
       }
-      triggerDownload(await res.blob(), `${userName}_부가설명_1.png`);
-      await delay(400);
-
-      setMessage('부가설명 2 생성 중…');
-      res = await fetch('/api/generate-report-explanation-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, part: 2, ...(analysisResultForDownload ? { analysisResult: analysisResultForDownload } : {}) }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || '부가설명 2 생성 실패');
-      }
-      triggerDownload(await res.blob(), `${userName}_부가설명_2_분석결과.png`);
-      await delay(400);
-
-      setMessage('부가설명 3 생성 중…');
-      res = await fetch('/api/generate-report-explanation-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, part: 3, ...(analysisResultForDownload ? { analysisResult: analysisResultForDownload } : {}) }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || '부가설명 3 생성 실패');
-      }
-      triggerDownload(await res.blob(), `${userName}_부가설명_3_다음단계.png`);
+      triggerDownload(await res.blob(), `${userName}_비용·보험료.png`);
       await delay(400);
 
       setMessage('마무리 PNG 생성 중…');
@@ -654,14 +654,14 @@ export default function AdminReportPage() {
 
         <div className="space-y-4">
           <p className="text-sm font-medium text-gray-700 mb-2">이미지 (PNG) — 리포터용</p>
-          <p className="text-xs text-gray-500 mb-2">데이터 JSON 선택 후 필요한 이미지를 뽑아, 워드/한글 등에서 리포터를 따로 만드세요. 전체 다운로드 시 파일명은 「이름_다이어그램」「이름_월예상금액」「이름_부가설명_1」「이름_부가설명_2_분석결과」「이름_부가설명_3_다음단계」「이름_마무리」로 저장됩니다.</p>
+          <p className="text-xs text-gray-500 mb-2">데이터 JSON 선택 후 필요한 이미지를 뽑아, 워드/한글 등에서 리포터를 따로 만드세요. 전체 다운로드 시 순서·파일명: ① 다이어그램 ② 분석결과 ③ 다음단계 ④ 월예상금액 ⑤ 비용·보험료 ⑥ 마무리.</p>
           <button
             type="button"
             onClick={handleDownloadAll}
             disabled={!hasReportData() || status === 'loading'}
             className="w-full py-3 px-4 bg-blue-600 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm mb-3 hover:bg-blue-700"
           >
-            전체 다운로드 (다이어그램 + 월예상금액 + 부가설명 1·2·3 + 마무리)
+            전체 다운로드 (다이어그램 → 분석결과 → 다음단계 → 월예상금액 → 비용·보험료 → 마무리)
           </button>
           <div className="grid grid-cols-2 gap-2">
             <button

@@ -604,6 +604,8 @@ export type ReportContent = {
   showStagePill?: boolean;
   /** 하단 빨간 한 줄 안내 (직접 지정 시 sections에서 추출하지 않음) */
   disclaimerText?: string;
+  /** 분석결과(Part2) 상단 배지용: 점검해볼 부분 개수(다음단계와 동일 로직) */
+  problemAreaCount?: number;
 };
 
 function escapeHtml(s: string): string {
@@ -647,7 +649,8 @@ function buildAnalysisResultMain(
   total: number,
   stageKey: string,
   stageDesc: string,
-  stageDescriptions?: Record<string, string>
+  stageDescriptions?: Record<string, string>,
+  problemAreaCount?: number
 ): string {
   const stageLabel = getStageLabel(total);
   const stageColors: Record<string, string> = { good: '#10b981', normal: '#3b82f6', fair: '#f59e0b', caution: '#f97316', danger: '#ef4444' };
@@ -690,7 +693,7 @@ function buildAnalysisResultMain(
   const riskColor = riskLevel === '고' ? '#ef4444' : riskLevel === '중' ? '#f59e0b' : '#10b981';
   const riskBg = riskLevel === '고' ? '#fee2e2' : riskLevel === '중' ? '#fef3c7' : '#d1fae5';
   const problemLines = problemBody.split('\n').filter(Boolean);
-  const problemCount = problemLines.length;
+  const problemCount = problemAreaCount !== undefined && problemAreaCount !== null ? problemAreaCount : problemLines.length;
 
   const keyMetrics = `<div class="analysis-key-metrics">
     <div class="analysis-metric"><span class="analysis-metric-label">인지 위치</span><span class="analysis-metric-value">상위 ${agePercent}%</span></div>
@@ -798,7 +801,7 @@ function getExplanationHTML(data: Record<string, unknown>, content: ReportConten
   const showStagePill = content.showStagePill !== false;
 
   const isAnalysisResultPage = mainSections.some((s) => String(s?.title ?? '').includes('동일 나이대 인지 위치') || String(s?.title ?? '').includes('다음에 할 일'));
-  const sectionHtml = isAnalysisResultPage ? buildAnalysisResultMain(data, mainSections, total, stageKey, stageDesc, content.stageDescriptions) : mainSections.map((s) => {
+  const sectionHtml = isAnalysisResultPage ? buildAnalysisResultMain(data, mainSections, total, stageKey, stageDesc, content.stageDescriptions, content.problemAreaCount) : mainSections.map((s) => {
     const title = String(s?.title ?? '');
     const body = String(s?.body ?? '');
     const isExplanationOnly = title === '월 예상 비용 부가설명';
@@ -1035,8 +1038,9 @@ function getExplanationHTML(data: Record<string, unknown>, content: ReportConten
     .analysis-gauge-fill { background: linear-gradient(90deg, #1d4ed8, #3b82f6); border-radius: 6px; min-width: 6px; }
     .analysis-gauge-label { font-size: 14px; font-weight: 800; color: #1d4ed8; margin-top: 6px; }
     .analysis-risk-badge { display: inline-block; font-size: 13px; font-weight: 800; padding: 6px 10px; border-radius: 6px; border: 2px solid; }
-    .analysis-cta { border-left: 5px solid #6d28d9; background: #f5f3ff; }
-    .analysis-cta-text { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; white-space: normal; word-break: keep-all; overflow-wrap: break-word; }
+    .analysis-cta { border-left: 6px solid #5b21b6; background: #ede9fe; box-shadow: 0 2px 8px rgba(91,33,182,0.15); }
+    .analysis-cta .analysis-card-title { color: #4c1d95; font-weight: 800; }
+    .analysis-cta-text { font-size: 15px; font-weight: 800; color: #1e293b; margin: 0; line-height: 1.6; white-space: normal; word-break: keep-all; overflow-wrap: break-word; }
     .analysis-steps { display: flex; flex-direction: column; gap: 8px; }
     .analysis-step { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: #1e293b; font-weight: 600; }
     .analysis-step-num { flex-shrink: 0; width: 26px; height: 26px; background: #6d28d9; color: #fff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; border: 2px solid #5b21b6; }
