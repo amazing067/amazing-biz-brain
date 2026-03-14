@@ -1437,7 +1437,7 @@ export default function Home() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [showGuide, setShowGuide] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false); // ★ 건너뛰기 방지용 락
-  const [showTermsModal, setShowTermsModal] = useState<{type: 'terms' | 'privacy' | 'thirdparty' | null}>({type: null});
+  const [showTermsModal, setShowTermsModal] = useState<{type: 'terms' | 'privacy' | 'thirdparty' | 'marketing' | null}>({type: null});
   const [agree0, setAgree0] = useState(false);
   const [agree1, setAgree1] = useState(false);
   const [agree2, setAgree2] = useState(false);
@@ -1593,6 +1593,15 @@ export default function Home() {
       bgColor: "from-purple-100 to-pink-100",
       textColor: "text-purple-800",
       stats: "2036년",
+      countUpTarget: null
+    },
+    {
+      title: "검사 전 안내",
+      subtitle: "꼭 확인해주세요",
+      content: "본 서비스는 선별 목적의 참고용 자가체크입니다.\n의료기관의 확진·진단을 대체하지 않습니다.\n정확한 확인이 필요하면 반드시 의료기관에 방문하세요.",
+      emoji: "⚠️",
+      bgColor: "from-amber-100 to-yellow-100",
+      textColor: "text-amber-800",
       countUpTarget: null
     }
   ];
@@ -2186,7 +2195,14 @@ export default function Home() {
 
     return (
       <div className="flex flex-col items-center w-full p-3 space-y-3 bg-gray-50">
-        
+
+        {/* 면책 안내 */}
+        <div className="w-full bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center space-y-0.5">
+          <p className="text-[11px] text-amber-800 font-bold">⚠️ 본 서비스는 선별 목적의 참고용 자가체크입니다.</p>
+          <p className="text-[10px] text-amber-700">의료기관의 확진·진단을 대체하지 않습니다.</p>
+          <p className="text-[10px] text-amber-700">정확한 확인이 필요하면 반드시 의료기관에 방문하세요.</p>
+        </div>
+
         {/* 1. 상단 등급 카드 */}
         <div className="bg-white w-full p-4 rounded-2xl shadow-lg border border-gray-100 text-center">
             <div className="flex justify-between items-center mb-3">
@@ -2590,7 +2606,20 @@ export default function Home() {
                     {/* 마케팅 활용 동의 (선택) */}
                     <label className="flex items-start gap-2 text-[10px] text-gray-200 cursor-pointer">
                         <input type="checkbox" checked={agree2} onChange={(e) => setAgree2(e.target.checked)} className="mt-0.5" />
-                        <span><span className="text-blue-300 font-bold">[선택]</span> 보험 상품 안내 및 마케팅 활용 동의</span>
+                        <div className="flex-1 flex items-center justify-between">
+                            <span><span className="text-blue-300 font-bold">[선택]</span> 보험 상품 안내 및 마케팅 활용 동의</span>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setShowTermsModal({type: 'marketing'});
+                                }}
+                                className="text-blue-300 underline text-[9px] ml-2"
+                            >
+                                내용보기
+                            </button>
+                        </div>
                     </label>
                 </div>
                 
@@ -2603,6 +2632,7 @@ export default function Home() {
                                     {showTermsModal.type === 'terms' && '이용약관'}
                                     {showTermsModal.type === 'privacy' && '개인정보 수집 및 이용 동의'}
                                     {showTermsModal.type === 'thirdparty' && '개인정보 제3자 제공 동의'}
+                                    {showTermsModal.type === 'marketing' && '보험 상품 안내 및 마케팅 활용 동의'}
                                 </h3>
                                 <button 
                                     onClick={() => setShowTermsModal({type: null})}
@@ -2614,82 +2644,183 @@ export default function Home() {
                             <div className="text-sm text-gray-700 leading-relaxed space-y-4">
                                 {showTermsModal.type === 'terms' && (
                                     <div className="space-y-3">
+                                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-2">
+                                            <p className="text-xs font-bold text-amber-800">⚠️ 본 서비스는 의료법상 의료행위가 아닌, 선별 목적의 참고용 자가체크입니다. 의료기관의 확진·진단·치료를 대체하지 않으며, 정확한 확인이 필요한 경우 반드시 의료기관에 방문하시기 바랍니다.</p>
+                                        </div>
+
                                         <h4 className="font-bold text-base">제1조 (목적)</h4>
-                                        <p>본 약관은 뇌 건강 검진 서비스(이하 "서비스")의 이용과 관련하여 서비스 제공자와 이용자 간의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.</p>
-                                        
+                                        <p>본 약관은 뇌 건강 자가체크 서비스(이하 &quot;서비스&quot;)의 이용과 관련하여 서비스 제공자(이하 &quot;회사&quot;)와 이용자 간의 권리, 의무 및 책임사항, 기타 필요한 사항을 규정함을 목적으로 합니다.</p>
+
                                         <h4 className="font-bold text-base">제2조 (정의)</h4>
-                                        <p>① "서비스"란 뇌 건강 검진 및 보험 상담 신청 서비스를 의미합니다.<br/>
-                                        ② "이용자"란 본 약관에 동의하고 서비스를 이용하는 자를 의미합니다.</p>
-                                        
+                                        <p>① &quot;서비스&quot;란 회사가 제공하는 뇌 건강 자가체크, 인지 기능 선별 검사, 검진 결과 분석, 보험 상담 신청 및 관련 부가 서비스를 의미합니다.<br/>
+                                        ② &quot;이용자&quot;란 본 약관에 동의하고 서비스를 이용하는 자를 의미합니다.<br/>
+                                        ③ &quot;자가체크&quot;란 이용자가 스스로 인지 기능 상태를 선별적으로 확인하는 비의료 행위를 의미합니다.</p>
+
                                         <h4 className="font-bold text-base">제3조 (약관의 효력 및 변경)</h4>
                                         <p>① 본 약관은 서비스 화면에 게시하거나 기타의 방법으로 이용자에게 공지함으로써 효력을 발생합니다.<br/>
-                                        ② 회사는 필요한 경우 관련 법령을 위배하지 않는 범위에서 본 약관을 변경할 수 있습니다.</p>
-                                        
-                                        <h4 className="font-bold text-base">제4조 (서비스의 제공)</h4>
+                                        ② 회사는 관련 법령을 위배하지 않는 범위에서 본 약관을 변경할 수 있으며, 변경 시 적용일자 7일 전부터 서비스 내 공지합니다.<br/>
+                                        ③ 이용자가 변경된 약관에 동의하지 않을 경우 서비스 이용을 중단할 수 있습니다.</p>
+
+                                        <h4 className="font-bold text-base">제4조 (서비스의 내용)</h4>
                                         <p>① 회사는 다음과 같은 서비스를 제공합니다:<br/>
-                                        - 뇌 건강 검진 서비스<br/>
-                                        - 보험 상담 신청 서비스<br/>
-                                        - 검진 결과 분석 및 제공</p>
-                                        
-                                        <h4 className="font-bold text-base">제5조 (이용자의 의무)</h4>
-                                        <p>① 이용자는 본 서비스를 이용함에 있어 다음 행위를 하여서는 안 됩니다:<br/>
-                                        - 타인의 정보를 도용하는 행위<br/>
+                                        - 뇌 건강 자가체크 (인지 기능 선별 검사)<br/>
+                                        - 검진 결과 AI 분석 및 리포트 제공<br/>
+                                        - 장기요양등급 예측 및 미래 간병비 시뮬레이션<br/>
+                                        - 전문 보험설계사 무료 상담 연결 서비스<br/>
+                                        ② 본 서비스의 검사 결과는 선별(스크리닝) 목적의 참고 자료이며, 의학적 진단이나 치료를 위한 것이 아닙니다.<br/>
+                                        ③ 서비스 이용 결과를 바탕으로 한 의료적 판단은 반드시 전문 의료기관을 통해 이루어져야 합니다.</p>
+
+                                        <h4 className="font-bold text-base">제5조 (서비스 이용의 제한)</h4>
+                                        <p>① 회사는 다음 각 호에 해당하는 경우 서비스 이용을 제한할 수 있습니다:<br/>
+                                        - 타인의 정보를 도용하거나 허위 정보를 입력하는 행위<br/>
                                         - 서비스의 안정적 운영을 방해하는 행위<br/>
-                                        - 법령에 위반되는 행위</p>
+                                        - 서비스를 영리 목적으로 무단 복제·배포하는 행위<br/>
+                                        - 기타 관련 법령에 위반되는 행위</p>
+
+                                        <h4 className="font-bold text-base">제6조 (면책조항)</h4>
+                                        <p>① 본 서비스는 의료법에 의한 의료행위가 아니며, 검사 결과는 선별 목적의 참고 자료에 한합니다.<br/>
+                                        ② 회사는 이용자가 서비스 결과를 근거로 내린 의료적·재정적 판단에 대해 책임을 지지 않습니다.<br/>
+                                        ③ 회사는 천재지변, 시스템 장애 등 불가항력으로 인한 서비스 중단에 대해 책임을 지지 않습니다.<br/>
+                                        ④ 보험 상담 서비스는 제휴 보험설계사를 통해 제공되며, 보험 상품의 가입 및 관련 책임은 해당 보험사 및 설계사에게 있습니다.</p>
+
+                                        <h4 className="font-bold text-base">제7조 (지적재산권)</h4>
+                                        <p>① 서비스에 포함된 콘텐츠(검사 문항, 분석 알고리즘, 디자인 등)에 대한 지적재산권은 회사에 귀속됩니다.<br/>
+                                        ② 이용자는 회사의 사전 동의 없이 서비스 내 콘텐츠를 복제·배포·전송할 수 없습니다.</p>
+
+                                        <h4 className="font-bold text-base">제8조 (분쟁 해결)</h4>
+                                        <p>① 본 약관과 관련한 분쟁은 대한민국 법령을 준거법으로 합니다.<br/>
+                                        ② 서비스 이용과 관련한 분쟁 발생 시 회사의 소재지를 관할하는 법원을 전속 관할법원으로 합니다.</p>
+
+                                        <p className="text-xs text-gray-500 pt-2 border-t border-gray-200">시행일: 2026년 1월 1일</p>
                                     </div>
                                 )}
                                 
                                 {showTermsModal.type === 'privacy' && (
                                     <div className="space-y-3">
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
+                                            <p className="text-xs text-blue-800">「개인정보 보호법」 제15조 및 제22조에 따라 아래의 내용으로 개인정보를 수집·이용하고자 합니다. 내용을 자세히 읽으신 후 동의 여부를 결정해 주시기 바랍니다.</p>
+                                        </div>
+
                                         <h4 className="font-bold text-base">1. 개인정보의 수집 및 이용 목적</h4>
-                                        <p>회사는 다음의 목적을 위하여 개인정보를 처리합니다:</p>
                                         <ul className="list-disc list-inside space-y-1 ml-2">
-                                            <li>뇌 건강 검진 서비스 제공</li>
-                                            <li>보험 상담 신청 및 상담 진행</li>
-                                            <li>검진 결과 분석 및 제공</li>
-                                            <li>고객 문의 및 불만 처리</li>
+                                            <li>뇌 건강 자가체크 서비스 제공 및 결과 분석</li>
+                                            <li>AI 정밀 분석 보고서 생성 및 전달</li>
+                                            <li>장기요양등급 예측 및 미래 간병비 시뮬레이션</li>
+                                            <li>전문 보험설계사 무료 상담 연결</li>
+                                            <li>서비스 이용 기록 분석 및 서비스 개선</li>
+                                            <li>고객 문의·불만 접수 및 처리</li>
                                         </ul>
-                                        
+
                                         <h4 className="font-bold text-base">2. 수집하는 개인정보의 항목</h4>
-                                        <p>① 필수 항목: 이름, 휴대폰 번호<br/>
-                                        ② 자동 수집 항목: IP주소, 쿠키, 접속 로그 등</p>
-                                        
+                                        <table className="w-full text-xs border border-gray-300 rounded">
+                                            <thead><tr className="bg-gray-100"><th className="border border-gray-300 px-2 py-1.5 text-left">구분</th><th className="border border-gray-300 px-2 py-1.5 text-left">항목</th></tr></thead>
+                                            <tbody>
+                                                <tr><td className="border border-gray-300 px-2 py-1.5 font-bold">필수</td><td className="border border-gray-300 px-2 py-1.5">이름, 휴대폰 번호, 생년월일, 성별, 거주 지역</td></tr>
+                                                <tr><td className="border border-gray-300 px-2 py-1.5 font-bold">검사 정보</td><td className="border border-gray-300 px-2 py-1.5">자가체크 응답 내역, 검사 점수, 분석 결과</td></tr>
+                                                <tr><td className="border border-gray-300 px-2 py-1.5 font-bold">자동 수집</td><td className="border border-gray-300 px-2 py-1.5">IP 주소, 접속 일시, 브라우저 정보, 접속 로그</td></tr>
+                                            </tbody>
+                                        </table>
+
                                         <h4 className="font-bold text-base">3. 개인정보의 보유 및 이용 기간</h4>
-                                        <p>① 서비스 이용 기간 동안 보유 및 이용합니다.<br/>
-                                        ② 관련 법령에 따라 일정 기간 보관이 필요한 경우 해당 기간 동안 보관합니다.</p>
-                                        
-                                        <h4 className="font-bold text-base">4. 개인정보의 제3자 제공</h4>
-                                        <p>회사는 원칙적으로 이용자의 개인정보를 제3자에게 제공하지 않습니다. 다만, 다음의 경우에는 예외로 합니다:<br/>
-                                        - 이용자가 사전에 동의한 경우<br/>
-                                        - 법령의 규정에 의거하거나, 수사 목적으로 법령에 정해진 절차와 방법에 따라 수사기관의 요구가 있는 경우</p>
-                                        
-                                        <h4 className="font-bold text-base">5. 개인정보의 파기</h4>
-                                        <p>회사는 개인정보 보유기간의 경과, 처리목적 달성 등 개인정보가 불필요하게 되었을 때에는 지체없이 해당 개인정보를 파기합니다.</p>
-                                        
-                                        <h4 className="font-bold text-base">6. 이용자의 권리</h4>
-                                        <p>이용자는 언제든지 개인정보 열람, 정정, 삭제, 처리정지 요구 등의 권리를 행사할 수 있습니다.</p>
+                                        <p>수집된 개인정보는 <strong>수집일로부터 3년간</strong> 보유·이용되며, 보유 기간 경과 시 지체 없이 파기합니다. 다만, 관련 법령에 따라 보관이 필요한 경우 아래 기간 동안 보관합니다:</p>
+                                        <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
+                                            <li>계약 또는 청약 철회에 관한 기록: 5년 (전자상거래법)</li>
+                                            <li>소비자 불만 또는 분쟁 처리에 관한 기록: 3년 (전자상거래법)</li>
+                                            <li>웹사이트 방문 기록: 3개월 (통신비밀보호법)</li>
+                                        </ul>
+
+                                        <h4 className="font-bold text-base">4. 개인정보의 파기 절차 및 방법</h4>
+                                        <p>① 보유 기간이 경과하거나 처리 목적이 달성된 개인정보는 지체 없이 파기합니다.<br/>
+                                        ② 전자적 파일 형태의 정보는 복구 불가능한 방법으로 영구 삭제하며, 종이 문서에 기록된 개인정보는 분쇄기로 분쇄하거나 소각합니다.</p>
+
+                                        <h4 className="font-bold text-base">5. 동의 거부 권리 및 불이익</h4>
+                                        <p>귀하는 개인정보 수집·이용에 대한 동의를 거부할 권리가 있습니다. 다만, 필수 항목에 대한 동의를 거부하실 경우 자가체크 결과 분석 및 보험 상담 신청 서비스를 이용하실 수 없습니다.</p>
+
+                                        <h4 className="font-bold text-base">6. 이용자의 권리 및 행사 방법</h4>
+                                        <p>① 이용자는 언제든지 자신의 개인정보에 대해 열람, 정정, 삭제, 처리정지를 요구할 수 있습니다.<br/>
+                                        ② 권리 행사는 서비스 내 문의 또는 개인정보 보호책임자에게 서면, 전화, 이메일로 연락하시면 지체 없이 처리됩니다.</p>
                                     </div>
                                 )}
                                 
                                 {showTermsModal.type === 'thirdparty' && (
                                     <div className="space-y-3">
-                                        <h4 className="font-bold text-base">1. 제3자 제공 목적</h4>
-                                        <p>카카오톡 알림톡 발송을 통한 보험 상담 안내 및 검진 결과 전달</p>
-                                        
-                                        <h4 className="font-bold text-base">2. 제공받는 자</h4>
-                                        <p>카카오톡 (카카오 주식회사)</p>
-                                        
-                                        <h4 className="font-bold text-base">3. 제공하는 개인정보 항목</h4>
-                                        <p>이름, 휴대폰 번호</p>
-                                        
-                                        <h4 className="font-bold text-base">4. 제공받는 자의 이용 목적</h4>
-                                        <p>알림톡 발송 서비스 제공</p>
-                                        
-                                        <h4 className="font-bold text-base">5. 보유 및 이용 기간</h4>
-                                        <p>알림톡 발송 완료 시까지 (발송 완료 후 즉시 파기)</p>
-                                        
-                                        <h4 className="font-bold text-base">6. 동의 거부 권리 및 불이익</h4>
-                                        <p>귀하는 위 개인정보 제3자 제공에 대한 동의를 거부할 권리가 있습니다. 다만, 동의를 거부하실 경우 카카오톡 알림톡을 통한 상담 안내 및 검진 결과 전달 서비스를 받으실 수 없습니다.</p>
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
+                                            <p className="text-xs text-blue-800">「개인정보 보호법」 제17조 및 제22조에 따라 개인정보를 제3자에게 제공하고자 합니다. 내용을 자세히 읽으신 후 동의 여부를 결정해 주시기 바랍니다.</p>
+                                        </div>
+
+                                        <h4 className="font-bold text-base">1. 개인정보를 제공받는 자</h4>
+                                        <table className="w-full text-xs border border-gray-300 rounded">
+                                            <thead><tr className="bg-gray-100"><th className="border border-gray-300 px-2 py-1.5 text-left">제공받는 자</th><th className="border border-gray-300 px-2 py-1.5 text-left">제공 목적</th><th className="border border-gray-300 px-2 py-1.5 text-left">제공 항목</th><th className="border border-gray-300 px-2 py-1.5 text-left">보유 기간</th></tr></thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td className="border border-gray-300 px-2 py-1.5">제휴 보험설계사</td>
+                                                    <td className="border border-gray-300 px-2 py-1.5">무료 보장 분석 및 맞춤 보험 설계 상담</td>
+                                                    <td className="border border-gray-300 px-2 py-1.5">이름, 연락처, 생년월일, 성별, 거주 지역, 검사 결과 요약</td>
+                                                    <td className="border border-gray-300 px-2 py-1.5">상담 완료 후 3년 또는 동의 철회 시</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="border border-gray-300 px-2 py-1.5">카카오 주식회사</td>
+                                                    <td className="border border-gray-300 px-2 py-1.5">카카오톡 알림톡 발송 (결과 리포트 전달, 상담 안내)</td>
+                                                    <td className="border border-gray-300 px-2 py-1.5">이름, 휴대폰 번호</td>
+                                                    <td className="border border-gray-300 px-2 py-1.5">발송 완료 후 즉시 파기</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        <h4 className="font-bold text-base">2. 제공 목적 상세</h4>
+                                        <p>① 이용자가 신청한 보험 상담을 제휴 보험설계사에게 연결하기 위함<br/>
+                                        ② 카카오톡 알림톡을 통해 AI 정밀 분석 보고서 및 상담 안내를 전달하기 위함<br/>
+                                        ③ 이용자 맞춤형 보장 분석 및 간병비 보험 설계안 제공을 위함</p>
+
+                                        <h4 className="font-bold text-base">3. 제공받는 자의 개인정보 이용 목적</h4>
+                                        <p>① 제휴 보험설계사: 이용자에게 전화·문자로 연락하여 무료 보장 분석 및 맞춤 보험 설계 상담 진행<br/>
+                                        ② 카카오 주식회사: 알림톡 메시지 발송 처리 (발송 후 즉시 파기)</p>
+
+                                        <h4 className="font-bold text-base">4. 보유 및 이용 기간</h4>
+                                        <p>① 제휴 보험설계사: 상담 완료 후 3년간 보유 (관련 법령에 따름), 이용자가 동의를 철회하는 경우 지체 없이 파기<br/>
+                                        ② 카카오 주식회사: 알림톡 발송 완료 시까지 (발송 후 즉시 파기)</p>
+
+                                        <h4 className="font-bold text-base">5. 동의 거부 권리 및 불이익</h4>
+                                        <p>귀하는 위 개인정보 제3자 제공에 대한 동의를 거부할 권리가 있습니다. 다만, 동의를 거부하실 경우 아래 서비스를 이용하실 수 없습니다:</p>
+                                        <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
+                                            <li>전문 보험설계사의 무료 보장 분석 및 상담</li>
+                                            <li>카카오톡을 통한 AI 정밀 분석 보고서 전달</li>
+                                        </ul>
+
+                                        <h4 className="font-bold text-base">6. 동의 철회</h4>
+                                        <p>동의 이후에도 언제든지 동의를 철회할 수 있으며, 철회 시 관련 개인정보는 지체 없이 파기됩니다. 동의 철회는 서비스 내 문의 또는 개인정보 보호책임자에게 연락하여 요청하실 수 있습니다.</p>
+                                    </div>
+                                )}
+
+                                {showTermsModal.type === 'marketing' && (
+                                    <div className="space-y-3">
+                                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-2">
+                                            <p className="text-xs text-green-800">본 동의는 선택 사항이며, 동의하지 않으셔도 서비스 이용에 제한이 없습니다.</p>
+                                        </div>
+
+                                        <h4 className="font-bold text-base">1. 마케팅 활용 목적</h4>
+                                        <ul className="list-disc list-inside space-y-1 ml-2">
+                                            <li>보험 상품 정보 및 혜택 안내</li>
+                                            <li>맞춤형 보험 상품 추천</li>
+                                            <li>건강 관련 콘텐츠 및 이벤트 정보 제공</li>
+                                            <li>뇌 건강 관련 유용한 정보·뉴스 전달</li>
+                                            <li>신규 서비스 및 기능 업데이트 안내</li>
+                                        </ul>
+
+                                        <h4 className="font-bold text-base">2. 활용하는 개인정보 항목</h4>
+                                        <p>이름, 휴대폰 번호, 생년월일, 성별, 거주 지역, 검사 결과 요약</p>
+
+                                        <h4 className="font-bold text-base">3. 안내 방법</h4>
+                                        <p>카카오톡 알림톡, 문자메시지(SMS/LMS), 전화</p>
+
+                                        <h4 className="font-bold text-base">4. 보유 및 이용 기간</h4>
+                                        <p><strong>동의일로부터 2년간</strong> 보유·이용되며, 기간 경과 또는 동의 철회 시 지체 없이 파기합니다.</p>
+
+                                        <h4 className="font-bold text-base">5. 동의 거부 권리</h4>
+                                        <p>귀하는 마케팅 활용에 대한 동의를 거부할 권리가 있으며, 동의를 거부하시더라도 자가체크 서비스 이용 및 보험 상담 신청에는 아무런 불이익이 없습니다.</p>
+
+                                        <h4 className="font-bold text-base">6. 동의 철회 및 수신 거부</h4>
+                                        <p>동의 이후에도 언제든지 마케팅 수신을 거부하거나 동의를 철회할 수 있습니다. 수신된 메시지 내 &quot;수신거부&quot; 링크를 클릭하거나, 개인정보 보호책임자에게 연락하여 철회를 요청하실 수 있습니다.</p>
                                     </div>
                                 )}
                             </div>
@@ -2861,9 +2992,9 @@ export default function Home() {
                             alert(`❌ 네트워크 오류가 발생했습니다.\n\n${error.message || '알 수 없는 오류'}\n\n개발자 도구 콘솔을 확인해주세요.`);
                         }
                     }} 
-                    className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-blue-900 py-3.5 rounded-xl font-black text-base shadow-lg transform active:scale-95 transition-all"
+                    className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-blue-900 py-5 rounded-xl font-black text-xl shadow-lg transform active:scale-95 transition-all"
                 >
-                    내 보험 점검 & 무료 견적 받기 📩
+                    AI 정밀 분석 보고서 & 무료 보험점검 📩
                 </button>
             </div>
             </div>
