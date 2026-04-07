@@ -1834,7 +1834,11 @@ export default function Home() {
     const currentMonth = new Date().getMonth() + 1;
     const currentDay = new Date().getDate();
     
-    const birthYear = userProfile.birthYear ? parseInt(userProfile.birthYear) : 0;
+    const isBirthYearValid =
+      /^\d{4}$/.test(userProfile.birthYear) &&
+      parseInt(userProfile.birthYear, 10) >= 1920 &&
+      parseInt(userProfile.birthYear, 10) <= currentYear;
+    const birthYear = isBirthYearValid ? parseInt(userProfile.birthYear, 10) : 0;
     const birthMonth = userProfile.birthMonth ? parseInt(userProfile.birthMonth) : 0;
     const birthDay = userProfile.birthDay ? parseInt(userProfile.birthDay) : 0;
     
@@ -1878,8 +1882,8 @@ export default function Home() {
                     value={userProfile.birthYear}
                     onChange={(e) => {
                       const raw = e.target.value;
-                      const year = raw.length > 4 ? raw.slice(0, 4) : raw; // 생년 최대 4자리
-                      const parsed = year ? parseInt(year, 10) : NaN;
+                      const year = raw.replace(/\D/g, '').slice(0, 4);
+                      const parsed = year.length === 4 ? parseInt(year, 10) : NaN;
                       const age = !isNaN(parsed) && parsed >= 1920 && parsed <= currentYear
                         ? currentYear - parsed + 1
                         : 0;
@@ -1931,6 +1935,11 @@ export default function Home() {
                     ? `만 ${calculatedAge}세 / 한국나이 ${koreanAge}세`
                     : `한국나이 ${koreanAge}세`
                   }
+                </p>
+              )}
+              {userProfile.birthYear && !isBirthYearValid && (
+                <p className="text-xs text-red-500 mt-2 text-center">
+                  생년은 4자리로 입력해주세요. (예: 1989)
                 </p>
               )}
             </div>
@@ -2038,6 +2047,10 @@ export default function Home() {
                 alert('모든 정보를 입력해주세요.\n\n• 생년월일 (년은 필수, 월일은 선택)\n• 성별\n• 사는 지역');
                 return;
               }
+              if (!isBirthYearValid) {
+                alert('생년은 4자리(예: 1989)로 정확히 입력해주세요.');
+                return;
+              }
               // 월일 유효성 검증
               if (userProfile.birthMonth && (parseInt(userProfile.birthMonth) < 1 || parseInt(userProfile.birthMonth) > 12)) {
                 alert('월은 1~12 사이의 숫자만 입력 가능합니다.');
@@ -2049,7 +2062,7 @@ export default function Home() {
               }
               setStep(0);
             }}
-            disabled={!userProfile.birthYear || !userProfile.gender || !userProfile.region}
+            disabled={!isBirthYearValid || !userProfile.gender || !userProfile.region}
             className="w-full bg-[#2E7D32] hover:bg-[#1b5e20] disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-5 rounded-2xl text-xl font-bold shadow-lg active:scale-95 transition-transform"
           >
             검사 시작하기 ▶
