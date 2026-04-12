@@ -10,6 +10,22 @@ import { analyzeReport, getCostBreakdownText, type ReportAnalysis } from '../../
  */
 type InputMode = 'file' | 'paste';
 
+function formatApplicantTrafficSummary(row: Record<string, unknown>): string {
+  const t = row.traffic;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return '—';
+  const o = t as Record<string, unknown>;
+  const us = o.utmSource != null && String(o.utmSource) !== '' ? String(o.utmSource) : '';
+  const uc = o.utmCampaign != null && String(o.utmCampaign) !== '' ? String(o.utmCampaign) : '';
+  if (us || uc) {
+    return [us && `src:${us}`, uc && `cmp:${uc}`].filter(Boolean).join(' ');
+  }
+  const fr = o.firstReferrer != null ? String(o.firstReferrer) : '';
+  if (fr) return `이전:${fr.length > 44 ? `${fr.slice(0, 44)}…` : fr}`;
+  const path = o.firstLandingPathWithQuery != null ? String(o.firstLandingPathWithQuery) : '';
+  if (path) return path.length > 48 ? `${path.slice(0, 48)}…` : path;
+  return '—';
+}
+
 export default function AdminReportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [inputMode, setInputMode] = useState<InputMode>('file');
@@ -430,13 +446,14 @@ export default function AdminReportPage() {
                   <th className="text-left py-2 px-3 font-semibold text-gray-700 w-36">신청 일시</th>
                   <th className="text-left py-2 px-3 font-semibold text-gray-700">이름</th>
                   <th className="text-left py-2 px-3 font-semibold text-gray-700">연락처</th>
+                  <th className="text-left py-2 px-3 font-semibold text-gray-700 min-w-[9rem] max-w-[14rem]">유입</th>
                   <th className="text-right py-2 px-3 font-semibold text-gray-700 w-14">점수</th>
                   <th className="py-2 px-2 font-semibold text-gray-700 w-28 text-center">작업</th>
                 </tr>
               </thead>
               <tbody>
                 {applicantsList.length === 0 && !listLoading && (
-                  <tr><td colSpan={5} className="py-6 text-center text-gray-400">저장된 신청이 없습니다.</td></tr>
+                  <tr><td colSpan={6} className="py-6 text-center text-gray-400">저장된 신청이 없습니다.</td></tr>
                 )}
                 {[...applicantsList].reverse().map((row, i) => {
                   const originalIndex = applicantsList.length - 1 - i;
@@ -458,6 +475,12 @@ export default function AdminReportPage() {
                       </td>
                       <td className="py-2 px-3 font-medium truncate">{(row.userName as string) ?? '-'}</td>
                       <td className="py-2 px-3 truncate">{(row.phoneNumber as string) ?? '-'}</td>
+                      <td
+                        className="py-2 px-3 text-gray-600 text-xs truncate max-w-[14rem]"
+                        title={row.traffic && typeof row.traffic === 'object' ? JSON.stringify(row.traffic) : undefined}
+                      >
+                        {formatApplicantTrafficSummary(row)}
+                      </td>
                       <td className="py-2 px-3 text-right">{(row.total as number) ?? '-'}점</td>
                       <td className="py-2 px-2">
                         <div className="flex items-center justify-center gap-1 flex-nowrap">

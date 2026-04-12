@@ -3,6 +3,19 @@ import nodemailer from 'nodemailer';
 import { getCostBreakdownText } from '../../../lib/report-analysis';
 import { appendApplicant } from '@/lib/applicants-storage';
 
+function escHtml(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function strField(v: unknown): string {
+  if (v == null) return '';
+  return String(v);
+}
+
 export async function POST(request: NextRequest) {
   console.log('📧 [API] 이메일 전송 요청 수신');
   
@@ -40,7 +53,37 @@ export async function POST(request: NextRequest) {
       agree2,
       agree3,
       reportUrl,
+      traffic: trafficFromClient,
     } = body;
+
+    const inbound =
+      trafficFromClient && typeof trafficFromClient === 'object' && !Array.isArray(trafficFromClient)
+        ? (trafficFromClient as Record<string, unknown>)
+        : {};
+    const uaRaw = request.headers.get('user-agent') ?? '';
+    const traffic = {
+      capturedAt: strField(inbound.capturedAt),
+      firstLandingUrl: strField(inbound.firstLandingUrl),
+      firstLandingPathWithQuery: strField(inbound.firstLandingPathWithQuery),
+      firstReferrer: strField(inbound.firstReferrer),
+      utmSource: strField(inbound.utmSource),
+      utmMedium: strField(inbound.utmMedium),
+      utmCampaign: strField(inbound.utmCampaign),
+      utmContent: strField(inbound.utmContent),
+      utmTerm: strField(inbound.utmTerm),
+      refParam: strField(inbound.refParam),
+      gclid: strField(inbound.gclid),
+      fbclid: strField(inbound.fbclid),
+      msclkid: strField(inbound.msclkid),
+      twclid: strField(inbound.twclid),
+      ttclid: strField(inbound.ttclid),
+      naverKeyword: strField(inbound.naverKeyword),
+      naverMedia: strField(inbound.naverMedia),
+      referrerAtSubmit: strField(inbound.referrerAtSubmit),
+      submitPageUrl: strField(inbound.submitPageUrl),
+      serverReferer: request.headers.get('referer') ?? '',
+      serverUserAgent: uaRaw.length > 280 ? `${uaRaw.slice(0, 280)}…` : uaRaw,
+    };
 
     console.log('📧 [API] 요청 데이터:', {
       userName,
@@ -50,6 +93,9 @@ export async function POST(request: NextRequest) {
       futureSelfPay,
       agree1,
       agree2,
+      utmSource: traffic.utmSource,
+      utmCampaign: traffic.utmCampaign,
+      firstLandingPathWithQuery: traffic.firstLandingPathWithQuery,
     });
 
     // 환경 변수에서 이메일 설정 가져오기
@@ -121,6 +167,47 @@ export async function POST(request: NextRequest) {
       `;
     }).join('') : '';
 
+    const trafficRow = (label: string, val: string) => `
+              <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #cffafe; font-weight: bold; width: 200px; background-color: #e0f2fe;">${escHtml(label)}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #cffafe; word-break: break-all; font-size: 13px;">${escHtml(val || '—')}</td>
+              </tr>`;
+    const trafficRowsHtml = [
+      ['첫 진입 기록 시각 (ISO)', traffic.capturedAt],
+      ['첫 랜딩 전체 URL', traffic.firstLandingUrl],
+      ['첫 랜딩 경로·쿼리', traffic.firstLandingPathWithQuery],
+      ['첫 진입 직전 사이트(리퍼러)', traffic.firstReferrer],
+      ['utm_source', traffic.utmSource],
+      ['utm_medium', traffic.utmMedium],
+      ['utm_campaign', traffic.utmCampaign],
+      ['utm_content', traffic.utmContent],
+      ['utm_term', traffic.utmTerm],
+      ['ref (쿼리)', traffic.refParam],
+      ['gclid', traffic.gclid],
+      ['fbclid', traffic.fbclid],
+      ['msclkid', traffic.msclkid],
+      ['twclid', traffic.twclid],
+      ['ttclid', traffic.ttclid],
+      ['n_keyword', traffic.naverKeyword],
+      ['n_media', traffic.naverMedia],
+      ['제출 직전 리퍼러', traffic.referrerAtSubmit],
+      ['제출 시점 페이지 URL', traffic.submitPageUrl],
+      ['API 요청 Referer 헤더', traffic.serverReferer],
+      ['User-Agent', traffic.serverUserAgent],
+    ]
+      .map(([k, v]) => trafficRow(k, v))
+      .join('');
+
+    const trafficSectionHtml = `
+          <div style="margin-top: 24px; background-color: #ecfeff; padding: 20px; border-radius: 8px; border-left: 4px solid #0891b2;">
+            <h2 style="color: #134e4a; margin-bottom: 12px; font-size: 18px; font-weight: bold;">📍 유입·캠페인 추적</h2>
+            <p style="color: #115e59; font-size: 13px; margin-bottom: 12px; line-height: 1.55;">문자·카톡·링크트리·블로그 등 <strong>링크마다 다른 utm_campaign / utm_source</strong>를 붙이면 구분이 가장 정확합니다. 검색 유입은 브라우저 정책에 따라 리퍼러가 비는 경우가 있습니다.</p>
+            <table style="width: 100%; border-collapse: collapse;">
+              ${trafficRowsHtml}
+            </table>
+          </div>
+`;
+
     // 이메일 내용 생성 (전체 결과지 상세 내역 포함)
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
@@ -181,6 +268,7 @@ export async function POST(request: NextRequest) {
                 })()}</td>
               </tr>
             </table>
+            ${trafficSectionHtml}
           </div>
 
           <!-- 2. 영역별 상세 점수 -->
@@ -441,6 +529,7 @@ export async function POST(request: NextRequest) {
       familyWarning,
       applicationDateTime: applicationDateTime || new Date().toISOString(),
       costBreakdown,
+      traffic,
     };
 
     const mailOptions: any = {

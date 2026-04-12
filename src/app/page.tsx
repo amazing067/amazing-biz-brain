@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getDistrictsByRegion, getDongsByDistrict } from '../lib/region-data';
+import { captureFirstTouchAttribution, getTrafficAttributionForSubmit } from '@/lib/traffic-attribution';
 
 // ============================================================================
 // 1. 데이터 정의 (모바일 최적화 텍스트)
@@ -1497,6 +1498,11 @@ export default function Home() {
     }
   }, []);
 
+  // 유입 경로(UTM·리퍼러 등) 세션 1회 캡처
+  useEffect(() => {
+    captureFirstTouchAttribution();
+  }, []);
+
   // 문제 변경 시 가이드 켜기 (family-care는 제외)
   useEffect(() => {
     if (step >= 0 && step < QUIZ_QUESTIONS.length) {
@@ -2936,6 +2942,8 @@ export default function Home() {
                             const now = new Date();
                             const applicationDateTime = `${now.getFullYear()}. ${String(now.getMonth() + 1).padStart(2, '0')}. ${String(now.getDate()).padStart(2, '0')}. ${now.getHours() < 12 ? '오전' : '오후'} ${(now.getHours() % 12) || 12}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+                            const traffic = getTrafficAttributionForSubmit();
+
                             const by = userProfile.birthYear ? parseInt(String(userProfile.birthYear), 10) : 0;
                             const bm = userProfile.birthMonth ? parseInt(String(userProfile.birthMonth), 10) : 0;
                             const bd = userProfile.birthDay ? parseInt(String(userProfile.birthDay), 10) : 0;
@@ -2983,6 +2991,7 @@ export default function Home() {
                                     agree1,
                                     agree2,
                                     agree3,
+                                    traffic,
                                 }),
                             });
 
