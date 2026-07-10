@@ -38,6 +38,11 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://치매검사.com",
   },
+  verification: {
+    other: {
+      "naver-site-verification": "8e503b8e7ef8c6424b5ed46e40cd5e5df4447270",
+    },
+  },
   robots: {
     index: true,
     follow: true,
